@@ -1,0 +1,52 @@
+[project]
+name = "sam-invoice"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyside6>=6.10.1",
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=8.0.0",
+    "poethepoet>=0.24.4",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+lint.select = [
+    "E",  # erreurs de style
+    "F",  # erreurs de code
+    "I",  # import
+    "B",  # bugs
+    "UP", # modernisation
+]
+exclude = [
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "sam_invoice.egg-info",
+]
+
+[tool.poe.tasks]
+console = {cmd = "ipython", help = "Opens python shell"}
+format =  {cmd = "ruff format sam_invoice tests", help = "Formats all files"}
+lint = {cmd = "ruff check sam_invoice tests", help = "Checks linting"}
+tests = {cmd = "pytest", help = "Tests"}
+run = {cmd = "python ./sam_invoice/app.py", help = "Run the application"}
+
+[tool.uv.build-backend]
+module-root = "."
+
+[tool.uv]
+package = true
