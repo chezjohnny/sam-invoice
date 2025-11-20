@@ -8,12 +8,14 @@ dependencies = [
     "pyside6>=6.10.1",
     "pytest>=7.0.0",
     "ruff>=0.1.0",
+    "sqlalchemy>=2.0",
 ]
 
 [dependency-groups]
 dev = [
     "ipython>=8.0.0",
     "poethepoet>=0.24.4",
+        "typer>=0.9.0",
 ]
 
 [build-system]
@@ -44,6 +46,9 @@ format =  {cmd = "ruff format sam_invoice tests", help = "Formats all files"}
 lint = {cmd = "ruff check sam_invoice tests", help = "Checks linting"}
 tests = {cmd = "pytest", help = "Tests"}
 run = {cmd = "python ./sam_invoice/app.py", help = "Run the application"}
+
+[project.scripts]
+sam-invoice = "sam_invoice.cli:main"
 
 [tool.uv.build-backend]
 module-root = "."
