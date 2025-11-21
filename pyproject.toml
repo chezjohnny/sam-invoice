@@ -42,7 +42,7 @@ console = {cmd = "ipython", help = "Opens python shell"}
 format =  {cmd = "ruff format sam_invoice tests", help = "Formats all files"}
 lint = {cmd = "ruff check sam_invoice tests", help = "Checks linting"}
 tests = {cmd = "pytest", help = "Tests"}
-run = {cmd = "python ./sam_invoice/app.py", help = "Run the application"}
+run = {cmd = "python ./sam_invoice/app.py -style macOS", help = "Run the application"}
 
 [project.scripts]
 sam-invoice = "sam_invoice.cli:main"

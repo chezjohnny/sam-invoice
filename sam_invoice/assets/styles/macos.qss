@@ -1,0 +1,95 @@
+/* macos.qss — léger thème macOS-like pour Sam Invoice
+   Visible changes: toolbar, toolbuttons, pushbuttons, line edits, list selection
+*/
+
+/* Window background kept light */
+QWidget {
+  background-color: #f2f2f4;
+  color: #000000;
+  /* Prefer safe families commonly available; avoid platform-specific names that Qt may not map. */
+  font-family: "Helvetica Neue", Arial, Roboto, sans-serif;
+}
+
+/* Toolbar */
+QToolBar {
+  background: transparent;
+  spacing: 8px;
+  padding: 6px;
+}
+
+QToolButton {
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  color: #333333;
+}
+QToolButton:hover {
+  background: rgba(0,0,0,0.04);
+  border-radius: 6px;
+}
+QToolButton:checked {
+  background: rgba(59,130,246,0.12);
+  color: #0b63d6;
+  border-radius: 6px;
+}
+
+/* Push buttons */
+QPushButton {
+  background-color: #ececec;
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+QPushButton:hover {
+  background-color: #f5f7fb;
+}
+QPushButton:pressed {
+  background-color: #e2e8f0;
+}
+QPushButton:disabled {
+  background-color: #f6f6f6;
+  color: #9b9b9b;
+}
+
+/* Line edits */
+QLineEdit {
+  background: #ffffff;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+QLineEdit:focus {
+  border: 1px solid #a5cdff;
+}
+
+/* List widgets */
+QListWidget, QListView {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+}
+QListWidget::item:selected, QListView::item:selected {
+  background: #a5cdff;
+  color: #000000;
+}
+
+/* Labels — keep default but allow spacing */
+QLabel { color: #222222; }
+
+/* Scrollbars — subtle */
+QScrollBar:vertical {
+  background: transparent;
+  width: 10px;
+  margin: 0px 0px 0px 0px;
+}
+QScrollBar::handle:vertical {
+  background: rgba(0,0,0,0.15);
+  border-radius: 5px;
+  min-height: 20px;
+}
+QScrollBar::add-line, QScrollBar::sub-line { height: 0px; }
+
+/* Small helpers */
+QHeaderView::section { background: transparent; }
+
+/* Keep overrides minimal to avoid breaking layout */

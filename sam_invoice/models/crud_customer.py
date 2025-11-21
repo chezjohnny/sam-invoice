@@ -22,8 +22,10 @@ def get_customers():
     return customers
 
 
-def search_customers(query: str):
+def search_customers(query: str, limit: int | None = None):
     """Search customers by id (exact) or by partial match on name, address, email (case-insensitive).
+
+    If `limit` is provided, limit the number of returned rows (useful for autocomplete).
 
     Returns a list of Customer objects.
     """
@@ -31,12 +33,15 @@ def search_customers(query: str):
     q = (query or "").strip()
     if not q:
         # return ordered by name
-        customers = session.query(Customer).order_by(func.lower(Customer.name)).all()
+        stmt = session.query(Customer).order_by(func.lower(Customer.name))
+        if limit:
+            customers = stmt.limit(limit).all()
+        else:
+            customers = stmt.all()
         session.close()
         return customers
 
     # try numeric id match
-    customers = []
     try:
         id_val = int(q)
         stmt = (
@@ -64,7 +69,10 @@ def search_customers(query: str):
             .order_by(func.lower(Customer.name))
         )
 
-    customers = stmt.all()
+    if limit:
+        customers = stmt.limit(limit).all()
+    else:
+        customers = stmt.all()
     session.close()
     return customers
 
