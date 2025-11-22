@@ -10,3 +10,4 @@ wheels/
 .venv
 .python-version
 sam_invoice.db
+.DS_Store

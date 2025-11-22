@@ -1,3 +1,5 @@
+"""Opérations CRUD pour les clients."""
+
 from sqlalchemy import func, or_
 
 from . import database
@@ -5,106 +7,102 @@ from .customer import Customer
 
 
 def create_customer(name: str, address: str, email: str):
+    """Créer un nouveau client dans la base de données."""
     session = database.SessionLocal()
-    customer = Customer(name=name, address=address, email=email)
-    session.add(customer)
-    session.commit()
-    session.refresh(customer)
-    session.close()
-    return customer
+    try:
+        customer = Customer(name=name, address=address, email=email)
+        session.add(customer)
+        session.commit()
+        session.refresh(customer)
+        return customer
+    finally:
+        session.close()
 
 
 def get_customers():
+    """Récupérer tous les clients, triés par nom (insensible à la casse)."""
     session = database.SessionLocal()
-    # order by name case-insensitively
-    customers = session.query(Customer).order_by(func.lower(Customer.name)).all()
-    session.close()
-    return customers
+    try:
+        return session.query(Customer).order_by(func.lower(Customer.name)).all()
+    finally:
+        session.close()
 
 
 def search_customers(query: str, limit: int | None = None):
-    """Search customers by id (exact) or by partial match on name, address, email (case-insensitive).
+    """Rechercher des clients par ID exact ou par correspondance partielle sur nom, adresse, email.
 
-    If `limit` is provided, limit the number of returned rows (useful for autocomplete).
+    Args:
+        query: Texte de recherche
+        limit: Nombre maximum de résultats (None = pas de limite)
 
-    Returns a list of Customer objects.
+    Returns:
+        Liste d'objets Customer correspondants
     """
     session = database.SessionLocal()
-    q = (query or "").strip()
-    if not q:
-        # return ordered by name
-        stmt = session.query(Customer).order_by(func.lower(Customer.name))
-        if limit:
-            customers = stmt.limit(limit).all()
-        else:
-            customers = stmt.all()
-        session.close()
-        return customers
-
-    # try numeric id match
     try:
-        id_val = int(q)
-        stmt = (
-            session.query(Customer)
-            .filter(
-                or_(
-                    Customer.id == id_val,
-                    Customer.name.ilike(f"%{q}%"),
-                    Customer.email.ilike(f"%{q}%"),
-                    Customer.address.ilike(f"%{q}%"),
-                )
-            )
-            .order_by(func.lower(Customer.name))
-        )
-    except ValueError:
-        stmt = (
-            session.query(Customer)
-            .filter(
-                or_(
-                    Customer.name.ilike(f"%{q}%"),
-                    Customer.email.ilike(f"%{q}%"),
-                    Customer.address.ilike(f"%{q}%"),
-                )
-            )
-            .order_by(func.lower(Customer.name))
-        )
+        q = (query or "").strip()
 
-    if limit:
-        customers = stmt.limit(limit).all()
-    else:
-        customers = stmt.all()
-    session.close()
-    return customers
+        # Si pas de recherche, retourner tous les clients
+        if not q:
+            stmt = session.query(Customer).order_by(func.lower(Customer.name))
+            return stmt.limit(limit).all() if limit else stmt.all()
+
+        # Construire les filtres de recherche
+        filters = [
+            Customer.name.ilike(f"%{q}%"),
+            Customer.email.ilike(f"%{q}%"),
+            Customer.address.ilike(f"%{q}%"),
+        ]
+
+        # Ajouter filtre ID si la recherche est numérique
+        try:
+            filters.append(Customer.id == int(q))
+        except ValueError:
+            pass
+
+        # Exécuter la recherche
+        stmt = session.query(Customer).filter(or_(*filters)).order_by(func.lower(Customer.name))
+        return stmt.limit(limit).all() if limit else stmt.all()
+    finally:
+        session.close()
 
 
 def get_customer_by_id(customer_id: int):
+    """Récupérer un client par son ID."""
     session = database.SessionLocal()
-    customer = session.query(Customer).filter(Customer.id == customer_id).first()
-    session.close()
-    return customer
+    try:
+        return session.query(Customer).filter(Customer.id == customer_id).first()
+    finally:
+        session.close()
 
 
 def update_customer(customer_id: int, name: str = None, address: str = None, email: str = None):
+    """Mettre à jour les informations d'un client existant."""
     session = database.SessionLocal()
-    customer = session.query(Customer).filter(Customer.id == customer_id).first()
-    if customer:
-        if name:
-            customer.name = name
-        if address:
-            customer.address = address
-        if email:
-            customer.email = email
-        session.commit()
-        session.refresh(customer)
-    session.close()
-    return customer
+    try:
+        customer = session.query(Customer).filter(Customer.id == customer_id).first()
+        if customer:
+            if name:
+                customer.name = name
+            if address:
+                customer.address = address
+            if email:
+                customer.email = email
+            session.commit()
+            session.refresh(customer)
+        return customer
+    finally:
+        session.close()
 
 
 def delete_customer(customer_id: int):
+    """Supprimer un client de la base de données."""
     session = database.SessionLocal()
-    customer = session.query(Customer).filter(Customer.id == customer_id).first()
-    if customer:
-        session.delete(customer)
-        session.commit()
-    session.close()
-    return customer
+    try:
+        customer = session.query(Customer).filter(Customer.id == customer_id).first()
+        if customer:
+            session.delete(customer)
+            session.commit()
+        return customer
+    finally:
+        session.close()

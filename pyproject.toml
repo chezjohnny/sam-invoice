@@ -39,9 +39,13 @@ exclude = [
 
 [tool.poe.tasks]
 console = {cmd = "ipython", help = "Opens python shell"}
-format =  {cmd = "ruff format sam_invoice tests", help = "Formats all files"}
+format =  {cmd = "ruff format --check sam_invoice tests", help = "Formats all files"}
+format-fix = {cmd = "ruff format sam_invoice tests", help = "Formats code"}
 lint = {cmd = "ruff check sam_invoice tests", help = "Checks linting"}
+lint-fix = {cmd = "ruff check --fix sam_invoice tests", help = "Fixes linting issues"}
 tests = {cmd = "pytest", help = "Tests"}
+check = {sequence = ["format", "lint", "tests"], help = "Runs format, lint and tests"}
+fix = {sequence = ["lint-fix", "format-fix"], help = "Fixes linting issues and formats code"}
 run = {cmd = "python ./sam_invoice/app.py -style macOS", help = "Run the application"}
 
 [project.scripts]
