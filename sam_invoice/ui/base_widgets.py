@@ -4,36 +4,27 @@ from abc import ABCMeta, abstractmethod
 from typing import Any
 
 import qtawesome as qta
-from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QSize, Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QPushButton,
     QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
+from sam_invoice.ui.widget_helpers import ClickableLabel, SearchWorker, create_icon_button
 
-# Métaclasse combinée pour résoudre le conflit entre QWidget et ABC
+
+# Combined metaclass to resolve conflict between QWidget and ABC
 class QABCMeta(type(QWidget), ABCMeta):
     """Combined metaclass allowing the use of ABC with QWidget."""
 
     pass
-
-
-class ClickableLabel(QLabel):
-    """Label that emits a signal on double-click."""
-
-    double_clicked = Signal()
-
-    def mouseDoubleClickEvent(self, event):
-        self.double_clicked.emit()
-        super().mouseDoubleClickEvent(event)
 
 
 class BaseDetailWidget(QWidget, metaclass=QABCMeta):
@@ -54,8 +45,6 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         self._fields = {}  # Dict[str, tuple[ClickableLabel, QLineEdit, QLabel]]
 
         # Set white background using QPalette
-        from PySide6.QtGui import QPalette
-
         pal = QPalette()
         pal.setColor(QPalette.Window, Qt.white)
         pal.setColor(QPalette.Base, Qt.white)
@@ -73,44 +62,26 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
 
         # Left column: avatar
         self._left_col = QVBoxLayout()
-        self._left_col.setSpacing(4)  # Reduced spacing between avatar and button
+        self._left_col.setSpacing(4)
         self._left_col.addWidget(self._avatar, alignment=Qt.AlignHCenter | Qt.AlignTop)
 
-        # Add edit button under avatar
-        icon_color = "#444444"
-        self._edit_btn = QPushButton()
-        self._edit_btn.setIcon(qta.icon("fa5s.edit", color=icon_color))
-        self._edit_btn.setIconSize(QSize(16, 16))
-        self._edit_btn.setFixedSize(32, 32)
-        self._edit_btn.setToolTip("Edit")
+        # Create buttons using helper
+        self._edit_btn = create_icon_button("fa5s.edit", "Edit")
         self._edit_btn.setEnabled(False)
         self._left_col.addWidget(self._edit_btn, alignment=Qt.AlignHCenter)
-        self._left_col.addStretch()  # Push avatar and button to top
+        self._left_col.addStretch()
 
         # Right column: fields (to be filled by subclasses)
         self._right_col = QVBoxLayout()
-        self._right_col.setSpacing(2)  # Reduced spacing between widgets
+        self._right_col.setSpacing(2)
 
-        # Action buttons (except edit which is under avatar)
-        self._save_btn = QPushButton()
-        self._save_btn.setIcon(qta.icon("fa5s.save", color=icon_color))
-        self._save_btn.setIconSize(QSize(16, 16))
-        self._save_btn.setFixedSize(32, 32)
-        self._save_btn.setToolTip("Save")
-        self._delete_btn = QPushButton()
-        self._delete_btn.setIcon(qta.icon("fa5s.trash", color=icon_color))
-        self._delete_btn.setIconSize(QSize(16, 16))
-        self._delete_btn.setFixedSize(32, 32)
-        self._delete_btn.setToolTip("Delete")
-        self._cancel_btn = QPushButton()
-        self._cancel_btn.setIcon(qta.icon("fa5s.times", color=icon_color))
-        self._cancel_btn.setIconSize(QSize(16, 16))
-        self._cancel_btn.setFixedSize(32, 32)
-        self._cancel_btn.setToolTip("Cancel")
-        self._save_btn.setVisible(False)
+        # Action buttons
+        self._save_btn = create_icon_button("fa5s.save", "Save")
+        self._delete_btn = create_icon_button("fa5s.trash", "Delete")
+        self._cancel_btn = create_icon_button("fa5s.times", "Cancel")
+        for btn in (self._save_btn, self._cancel_btn):
+            btn.setVisible(False)
         self._save_btn.setEnabled(False)
-        self._cancel_btn.setVisible(False)
-        # The delete button remains visible but disabled by default
         self._delete_btn.setEnabled(False)
 
         self._actions_layout = QHBoxLayout()
@@ -120,11 +91,11 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
 
         content_layout.addLayout(self._left_col, 0)
         content_layout.addLayout(self._right_col, 0)
-        content_layout.addStretch()  # Add stretch to push content to the left
+        content_layout.addStretch()
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.addLayout(content_layout)
-        main_layout.addStretch()  # Push content to top
+        main_layout.addStretch()
 
         # Common connections
         self._edit_btn.clicked.connect(lambda: self._enter_edit_mode(True))
@@ -156,7 +127,7 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         if word_wrap:
             label.setWordWrap(True)
 
-        # Champ d'édition
+        # Edit field
         edit = QLineEdit()
         edit.setPlaceholderText(placeholder)
         edit.setVisible(False)
@@ -265,31 +236,6 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         self._enter_edit_mode(False)
 
 
-class SearchWorker(QObject):
-    """Worker that executes searches in a separate thread."""
-
-    results_ready = Signal(object)
-    error = Signal(str)
-
-    def __init__(self, search_func):
-        """Initialize the worker with a search function.
-
-        Args:
-            search_func: Callable function(query: str, limit: int) -> list
-        """
-        super().__init__()
-        self._search_func = search_func
-
-    @Slot(str, int)
-    def search(self, q: str, limit: int):
-        try:
-            rows = self._search_func(q, limit=limit)
-            self.results_ready.emit(rows)
-        except Exception as e:
-            self.error.emit(str(e))
-            self.results_ready.emit([])
-
-
 class BaseListView(QWidget, metaclass=QABCMeta):
     """Base class for views with list and detail (Customers, Articles, etc.).
 
@@ -327,9 +273,7 @@ class BaseListView(QWidget, metaclass=QABCMeta):
 
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText(self._search_placeholder())
-        # Add search icon
-        icon_color = "#444444"
-        self.search_box.addAction(qta.icon("fa5s.search", color=icon_color), QLineEdit.LeadingPosition)
+        self.search_box.addAction(qta.icon("fa5s.search", color="#444444"), QLineEdit.LeadingPosition)
 
         self._results_count_label = QLabel("")
         self._results_count_label.setStyleSheet("color: #666; font-size:11px; padding:4px 0;")
@@ -355,11 +299,7 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         # Buttons under list (aligned to right: new then delete)
         list_buttons_layout = QHBoxLayout()
         list_buttons_layout.addStretch()
-        self._add_btn = QPushButton()
-        self._add_btn.setIcon(qta.icon("fa5s.plus", color=icon_color))
-        self._add_btn.setIconSize(QSize(16, 16))
-        self._add_btn.setFixedSize(32, 32)
-        self._add_btn.setToolTip("New")
+        self._add_btn = create_icon_button("fa5s.plus", "New")
         list_buttons_layout.addWidget(self._add_btn)
         list_buttons_layout.addWidget(self._detail_widget._delete_btn)
 
