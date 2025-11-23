@@ -1,18 +1,18 @@
-"""Modèle de données pour les clients."""
+"""Data model for customers."""
 
 from sqlalchemy import CheckConstraint, Column, Integer, String
 from sqlalchemy.orm import declarative_base
 
-# Base déclarative pour tous les modèles SQLAlchemy
+# Declarative base for all SQLAlchemy models
 Base = declarative_base()
 
 
 class Customer(Base):
-    """Modèle de client avec nom, adresse et email.
+    """Customer model with name, address and email.
 
-    Contraintes:
-    - Le nom doit avoir au moins 3 caractères
-    - L'adresse doit avoir au moins 3 caractères
+    Constraints:
+    - Name must be at least 3 characters
+    - Address must be at least 3 characters
     """
 
     __tablename__ = "customers"

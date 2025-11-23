@@ -1,4 +1,4 @@
-"""Widget de détail client utilisant la classe de base."""
+"""Customer detail widget using the base class."""
 
 from PySide6.QtWidgets import QMessageBox
 
@@ -6,33 +6,32 @@ from sam_invoice.ui.base_widgets import BaseDetailWidget
 
 
 class CustomerDetailWidget(BaseDetailWidget):
-    """Widget de détail client avec vue/édition.
+    """Customer detail widget with view/edit.
 
-    Affiche les informations du client (nom, adresse, email) avec
-    possibilité d'éditer, sauvegarder et supprimer.
+    Displays customer information (name, address, email) with
+    ability to edit, save and delete.
     """
 
-    # Redéfinir les signaux avec des noms spécifiques
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # Définir les alias pour les signaux
+        # Define signal aliases
         self.customer_saved = self.item_saved
         self.customer_deleted = self.item_deleted
 
-        # Ajouter les champs spécifiques au client
+        # Add customer-specific fields
         self._add_field("name", "", "e.g. John Doe", is_primary=True)
         self._add_field("address", "", "e.g. 1 Wine St, Apt 2", word_wrap=True)
         self._add_field("email", "", "e.g. john@example.com")
 
-        # Finaliser le layout
+        # Finalize layout
         self._finalize_layout()
 
-        # Charger l'icône
+        # Load icon
         self._load_avatar_icon("customers")
 
     def _save_changes(self):
-        """Sauvegarder les modifications du client."""
+        """Save customer changes."""
         data = {
             "id": self._current_id,
             "name": self._fields["name"][1].text().strip(),
@@ -43,7 +42,7 @@ class CustomerDetailWidget(BaseDetailWidget):
         self._enter_edit_mode(False)
 
     def _on_delete_clicked(self):
-        """Demander confirmation et supprimer le client."""
+        """Request confirmation and delete the customer."""
         if self._current_id is None:
             return
 
@@ -59,14 +58,14 @@ class CustomerDetailWidget(BaseDetailWidget):
             self.customer_deleted.emit(int(self._current_id))
 
     def _validate_fields(self) -> bool:
-        """Valider les champs du formulaire."""
+        """Validate form fields."""
         name = self._fields["name"][1].text().strip()
         address = self._fields["address"][1].text().strip()
         email = self._fields["email"][1].text().strip()
 
         valid = True
 
-        # Validation du nom
+        # Name validation
         name_label, name_edit, name_err = self._fields["name"]
         if not name:
             name_err.setText("Name is required")
@@ -75,7 +74,7 @@ class CustomerDetailWidget(BaseDetailWidget):
         else:
             name_err.setVisible(False)
 
-        # Validation de l'adresse
+        # Address validation
         addr_label, addr_edit, addr_err = self._fields["address"]
         if not address:
             addr_err.setText("Address is required")
@@ -84,7 +83,7 @@ class CustomerDetailWidget(BaseDetailWidget):
         else:
             addr_err.setVisible(False)
 
-        # Validation de l'email (si fourni)
+        # Email validation (if provided)
         email_label, email_edit, email_err = self._fields["email"]
         if email and "@" not in email:
             email_err.setText("Invalid email")
@@ -97,22 +96,22 @@ class CustomerDetailWidget(BaseDetailWidget):
         return valid
 
     def set_customer(self, cust):
-        """Afficher les informations d'un client."""
+        """Display customer information."""
         self._current_id = getattr(cust, "id", None) if cust else None
 
         if not cust:
-            # Effacer l'affichage
+            # Clear display
             self._fields["name"][0].setText("")
             self._fields["address"][0].setText("")
             self._fields["email"][0].setText("")
             self._edit_btn.setEnabled(False)
             self._edit_btn.setVisible(False)
-            self._delete_btn.setVisible(False)
+            self._delete_btn.setEnabled(False)
         else:
-            # Afficher les données du client
+            # Display customer data
             self._fields["name"][0].setText(getattr(cust, "name", ""))
             self._fields["address"][0].setText(getattr(cust, "address", ""))
             self._fields["email"][0].setText(getattr(cust, "email", ""))
             self._edit_btn.setEnabled(True)
             self._edit_btn.setVisible(True)
-            self._delete_btn.setVisible(self._current_id is not None)
+            self._delete_btn.setEnabled(self._current_id is not None)

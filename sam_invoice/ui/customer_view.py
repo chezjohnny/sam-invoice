@@ -1,4 +1,4 @@
-"""Vue des clients utilisant la classe de base."""
+"""Customer view using the base class."""
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QMessageBox
@@ -9,60 +9,60 @@ from sam_invoice.ui.customer_detail import CustomerDetailWidget
 
 
 class CustomerView(BaseListView):
-    """Widget de vue clients avec disposition deux colonnes.
+    """Customer view widget with two-column layout.
 
-    Colonne gauche: recherche et liste des clients
-    Colonne droite: détail du client avec actions edit/save/delete
+    Left column: search and customer list
+    Right column: customer detail with edit/save/delete actions
     """
 
     customer_selected = Signal(object)
 
     def _search_placeholder(self) -> str:
-        """Texte du placeholder de recherche."""
-        return "Rechercher un client (nom, email)..."
+        """Search placeholder text."""
+        return "Search for a customer (name, email)..."
 
     def _search_function(self, query: str, limit: int):
-        """Fonction de recherche pour les clients."""
+        """Search function for customers."""
         rows = crud.search_customers(query, limit=limit)
         return sorted(rows, key=lambda c: (getattr(c, "name", "") or "").lower())
 
     def _create_detail_widget(self):
-        """Créer le widget de détail client."""
+        """Create the customer detail widget."""
         detail = CustomerDetailWidget(self)
         detail.customer_saved.connect(self._on_saved)
         detail.customer_deleted.connect(self._on_deleted)
         return detail
 
     def _get_all_items(self):
-        """Obtenir tous les clients."""
+        """Get all customers."""
         return crud.get_customers()
 
     def _format_list_item(self, customer) -> str:
-        """Formater un client pour l'affichage dans la liste."""
-        name = getattr(customer, "name", "") or "(sans nom)"
+        """Format a customer for display in the list."""
+        name = getattr(customer, "name", "") or "(no name)"
         email = getattr(customer, "email", "")
         if email:
             return f"{name} ({email})"
         return name
 
     def _on_saved(self, data: dict):
-        """Callback quand un client est sauvegardé."""
+        """Callback when a customer is saved."""
         cust_id = data.get("id")
         try:
             if cust_id:
-                # Mise à jour
+                # Update
                 crud.update_customer(
                     cust_id, name=data.get("name"), address=data.get("address"), email=data.get("email")
                 )
             else:
-                # Création
+                # Create
                 crud.create_customer(name=data.get("name"), address=data.get("address"), email=data.get("email"))
             self.reload_items()
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to save customer: {e}")
 
     def _on_deleted(self, cust_id: int):
-        """Callback quand un client est supprimé."""
+        """Callback when a customer is deleted."""
         try:
             crud.delete_customer(cust_id)
             self.reload_items()
@@ -70,7 +70,7 @@ class CustomerView(BaseListView):
             QMessageBox.warning(self, "Error", f"Failed to delete customer: {e}")
 
     def _on_item_activated(self, item):
-        """Callback quand un item est activé."""
+        """Callback when an item is activated."""
         if not item:
             return
         selected_customer = item.data(Qt.ItemDataRole.UserRole)
@@ -78,9 +78,9 @@ class CustomerView(BaseListView):
         self.customer_selected.emit(selected_customer)
 
     def _on_add_item(self):
-        """Callback pour ajouter un nouvel item."""
-        # Effacer la sélection
+        """Callback to add a new item."""
+        # Clear selection
         self._results_list.clearSelection()
         self._detail_widget.set_customer(None)
-        # Passer en mode édition
+        # Enter edit mode
         self._detail_widget._enter_edit_mode(True)

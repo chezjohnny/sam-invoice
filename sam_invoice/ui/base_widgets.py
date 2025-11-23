@@ -1,11 +1,11 @@
-"""Widgets de base réutilisables pour les vues de détail et liste."""
+"""Reusable base widgets for detail and list views."""
 
 from abc import ABCMeta, abstractmethod
-from pathlib import Path
 from typing import Any
 
+import qtawesome as qta
 from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
@@ -20,13 +21,13 @@ from PySide6.QtWidgets import (
 
 # Métaclasse combinée pour résoudre le conflit entre QWidget et ABC
 class QABCMeta(type(QWidget), ABCMeta):
-    """Métaclasse combinée permettant d'utiliser ABC avec QWidget."""
+    """Combined metaclass allowing the use of ABC with QWidget."""
 
     pass
 
 
 class ClickableLabel(QLabel):
-    """Label qui émet un signal lors d'un double-clic."""
+    """Label that emits a signal on double-click."""
 
     double_clicked = Signal()
 
@@ -36,13 +37,13 @@ class ClickableLabel(QLabel):
 
 
 class BaseDetailWidget(QWidget, metaclass=QABCMeta):
-    """Classe de base pour les widgets de détail (Customer, Article, etc.).
+    """Base class for detail widgets (Customer, Article, etc.).
 
-    Fournit la structure commune : avatar, champs éditables, boutons d'action,
-    validation, et gestion du mode édition.
+    Provides common structure: avatar, editable fields, action buttons,
+    validation, and edit mode management.
     """
 
-    # Signaux à redéfinir dans les sous-classes
+    # Signals to override in subclasses
     item_saved = Signal(object)
     editing_changed = Signal(bool)
     item_deleted = Signal(int)
@@ -57,41 +58,57 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         self._avatar.setFixedSize(96, 96)
         self._avatar.setAlignment(Qt.AlignCenter)
 
-        # Layout principal
+        # Main layout
         content_layout = QHBoxLayout()
         content_layout.setAlignment(Qt.AlignTop)
 
-        # Colonne gauche: avatar
+        # Left column: avatar
         self._left_col = QVBoxLayout()
+        self._left_col.setSpacing(4)  # Reduced spacing between avatar and button
         self._left_col.addWidget(self._avatar, alignment=Qt.AlignHCenter | Qt.AlignTop)
 
-        # Colonne droite: champs (à remplir par les sous-classes)
-        self._right_col = QVBoxLayout()
+        # Add edit button under avatar
+        icon_color = "#444444"
+        self._edit_btn = QPushButton()
+        self._edit_btn.setIcon(qta.icon("fa5s.edit", color=icon_color))
+        self._edit_btn.setToolTip("Edit")
+        self._edit_btn.setEnabled(False)
+        self._left_col.addWidget(self._edit_btn, alignment=Qt.AlignHCenter)
+        self._left_col.addStretch()  # Push avatar and button to top
 
-        # Boutons d'action
-        self._edit_btn = QPushButton("Edit")
-        self._save_btn = QPushButton("Save")
-        self._delete_btn = QPushButton("Delete")
-        self._cancel_btn = QPushButton("Cancel")
+        # Right column: fields (to be filled by subclasses)
+        self._right_col = QVBoxLayout()
+        self._right_col.setSpacing(2)  # Reduced spacing between widgets
+
+        # Action buttons (except edit which is under avatar)
+        self._save_btn = QPushButton()
+        self._save_btn.setIcon(qta.icon("fa5s.save", color=icon_color))
+        self._save_btn.setToolTip("Save")
+        self._delete_btn = QPushButton()
+        self._delete_btn.setIcon(qta.icon("fa5s.trash", color=icon_color))
+        self._delete_btn.setToolTip("Delete")
+        self._cancel_btn = QPushButton()
+        self._cancel_btn.setIcon(qta.icon("fa5s.times", color=icon_color))
+        self._cancel_btn.setToolTip("Cancel")
         self._save_btn.setVisible(False)
         self._save_btn.setEnabled(False)
         self._cancel_btn.setVisible(False)
-        self._edit_btn.setEnabled(False)
-        self._delete_btn.setVisible(False)
+        # The delete button remains visible but disabled by default
+        self._delete_btn.setEnabled(False)
 
         self._actions_layout = QHBoxLayout()
         self._actions_layout.addStretch()
-        self._actions_layout.addWidget(self._edit_btn)
-        self._actions_layout.addWidget(self._delete_btn)
         self._actions_layout.addWidget(self._save_btn)
         self._actions_layout.addWidget(self._cancel_btn)
 
         content_layout.addLayout(self._left_col, 1)
         content_layout.addLayout(self._right_col, 3)
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.addLayout(content_layout)
+        main_layout.addStretch()  # Push content to top
 
-        # Connexions communes
+        # Common connections
         self._edit_btn.clicked.connect(lambda: self._enter_edit_mode(True))
         self._cancel_btn.clicked.connect(lambda: self._enter_edit_mode(False))
         self._save_btn.clicked.connect(self._save_changes)
@@ -100,14 +117,14 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
     def _add_field(
         self, name: str, label_text: str, placeholder: str, is_primary: bool = False, word_wrap: bool = False
     ):
-        """Ajouter un champ éditable (label + edit + error).
+        """Add an editable field (label + edit + error).
 
         Args:
-            name: Nom du champ (clé dans _fields)
-            label_text: Texte initial du label
-            placeholder: Placeholder pour le champ d'édition
-            is_primary: Si True, utiliser une police grande et en gras
-            word_wrap: Si True, activer le word wrap sur le label
+            name: Field name (key in _fields)
+            label_text: Initial label text
+            placeholder: Placeholder for edit field
+            is_primary: If True, use large and bold font
+            word_wrap: If True, enable word wrap on label
         """
         # Label cliquable
         label = ClickableLabel(label_text)
@@ -131,41 +148,49 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         error.setStyleSheet("color: #c00; font-size:11px;")
         error.setVisible(False)
 
-        # Stocker dans le dictionnaire
+        # Store in dictionary
         self._fields[name] = (label, edit, error)
 
-        # Ajouter au layout
+        # Add to layout with reduced spacing
         self._right_col.addWidget(label)
         self._right_col.addWidget(edit)
         self._right_col.addWidget(error)
+        # Add small spacing between fields (except for the last one)
+        if not is_primary:
+            self._right_col.addSpacing(4)
 
-        # Connecter le double-clic pour édition
+        # Connect double-click for editing
         label.double_clicked.connect(lambda: self._enter_edit_mode(True))
 
-        # Connecter la validation réactive
+        # Connect reactive validation
         edit.textChanged.connect(self._validate_fields)
 
         return label, edit, error
 
     def _load_avatar_icon(self, icon_name: str):
-        """Charger l'icône avatar depuis le fichier SVG."""
-        icons_dir = Path(__file__).parent.parent / "assets" / "icons"
-        avatar_path = icons_dir / f"{icon_name}.svg"
-        if avatar_path.exists():
-            icon = QIcon(str(avatar_path))
-            pix = icon.pixmap(QSize(96, 96))
-            if not pix.isNull():
-                self._avatar.setPixmap(pix)
+        """Load avatar icon with qtawesome."""
+        icon_color = "#444444"
+        icon_map = {
+            "customers": "fa5s.users",
+            "articles": "fa5s.wine-bottle",
+        }
+
+        icon_key = icon_map.get(icon_name, "fa5s.file")
+        icon = qta.icon(icon_key, color=icon_color)
+        pix = icon.pixmap(QSize(96, 96))
+        if not pix.isNull():
+            self._avatar.setPixmap(pix)
 
     def _finalize_layout(self):
-        """Finaliser le layout en ajoutant les boutons d'action."""
+        """Finalize layout by adding action buttons."""
         self._right_col.addLayout(self._actions_layout)
+        self._right_col.addStretch()  # Push content to top
 
     def _enter_edit_mode(self, editing: bool):
-        """Basculer entre le mode visualisation et le mode édition."""
+        """Toggle between view mode and edit mode."""
         self.editing_changed.emit(editing)
 
-        # Afficher/masquer les widgets
+        # Show/hide widgets
         for label, edit, _error in self._fields.values():
             label.setVisible(not editing)
             edit.setVisible(editing)
@@ -175,38 +200,45 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         self._edit_btn.setVisible(not editing)
         self._save_btn.setVisible(editing)
         self._cancel_btn.setVisible(editing)
-        self._delete_btn.setVisible(not editing and self._current_id is not None)
+
+        # Delete button: always visible, enabled based on _current_id and mode
+        if editing:
+            # In edit mode, disable delete
+            self._delete_btn.setEnabled(False)
+        else:
+            # In view mode, enable if we have an ID
+            self._delete_btn.setEnabled(self._current_id is not None)
 
         if editing:
             self._validate_fields()
 
     @abstractmethod
     def _save_changes(self):
-        """Sauvegarder les modifications (à implémenter dans les sous-classes)."""
+        """Save changes (to be implemented in subclasses)."""
         pass
 
     @abstractmethod
     def _on_delete_clicked(self):
-        """Gérer la suppression (à implémenter dans les sous-classes)."""
+        """Handle deletion (to be implemented in subclasses)."""
         pass
 
     @abstractmethod
     def _validate_fields(self) -> bool:
-        """Valider les champs (à implémenter dans les sous-classes)."""
+        """Validate fields (to be implemented in subclasses)."""
         pass
 
 
 class SearchWorker(QObject):
-    """Worker qui exécute les recherches dans un thread séparé."""
+    """Worker that executes searches in a separate thread."""
 
     results_ready = Signal(object)
     error = Signal(str)
 
     def __init__(self, search_func):
-        """Initialiser le worker avec une fonction de recherche.
+        """Initialize the worker with a search function.
 
         Args:
-            search_func: Fonction callable(query: str, limit: int) -> list
+            search_func: Callable function(query: str, limit: int) -> list
         """
         super().__init__()
         self._search_func = search_func
@@ -222,9 +254,9 @@ class SearchWorker(QObject):
 
 
 class BaseListView(QWidget, metaclass=QABCMeta):
-    """Classe de base pour les vues avec liste et détail (Customers, Articles, etc.).
+    """Base class for views with list and detail (Customers, Articles, etc.).
 
-    Fournit : recherche avec debounce, liste, détail, et gestion CRUD.
+    Provides: search with debounce, list, detail, and CRUD management.
     """
 
     item_selected = Signal(object)
@@ -233,7 +265,7 @@ class BaseListView(QWidget, metaclass=QABCMeta):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # Configuration du worker de recherche en arrière-plan
+        # Background search worker configuration
         self._search_thread = QThread(self)
         self._search_worker = SearchWorker(self._search_function)
         self._search_worker.moveToThread(self._search_thread)
@@ -242,19 +274,25 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         self.search_requested.connect(self._search_worker.search)
         self._search_thread.start()
 
-        # Timer pour debounce de la recherche
+        # Timer for search debounce
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(250)
         self._search_timer.timeout.connect(self._perform_search)
 
-        layout = QHBoxLayout(self)
+        # Splitter to separate list and detail
+        splitter = QSplitter(Qt.Horizontal, self)
 
-        # === Colonne gauche: recherche et liste ===
-        left_layout = QVBoxLayout()
+        # === Left column: search and list ===
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
 
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText(self._search_placeholder())
+        # Add search icon
+        icon_color = "#444444"
+        self.search_box.addAction(qta.icon("fa5s.search", color=icon_color), QLineEdit.LeadingPosition)
 
         self._results_count_label = QLabel("")
         self._results_count_label.setStyleSheet("color: #666; font-size:11px; padding:4px 0;")
@@ -262,20 +300,39 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         self._results_list = QListWidget()
         self._results_list.setSelectionMode(QListWidget.SingleSelection)
 
-        self._add_btn = QPushButton("Add")
-
         left_layout.addWidget(self.search_box)
         left_layout.addWidget(self._results_count_label)
         left_layout.addWidget(self._results_list, 1)
-        left_layout.addWidget(self._add_btn)
 
-        # === Colonne droite: détail (à créer dans les sous-classes) ===
+        # === Right column: detail (to be created in subclasses) ===
         self._detail_widget = self._create_detail_widget()
 
-        layout.addLayout(left_layout, 1)
-        layout.addWidget(self._detail_widget, 2)
+        # Buttons under list (aligned to right: new then delete)
+        list_buttons_layout = QHBoxLayout()
+        list_buttons_layout.addStretch()
+        self._add_btn = QPushButton()
+        self._add_btn.setIcon(qta.icon("fa5s.plus", color=icon_color))
+        self._add_btn.setToolTip("New")
+        list_buttons_layout.addWidget(self._add_btn)
+        list_buttons_layout.addWidget(self._detail_widget._delete_btn)
 
-        # === Connexions des signaux ===
+        left_layout.addLayout(list_buttons_layout)
+
+        # Add widgets to splitter
+        splitter.addWidget(left_widget)
+        splitter.addWidget(self._detail_widget)
+
+        # Set fixed initial size for left column and allow resizing
+        splitter.setStretchFactor(0, 0)  # Left column doesn't stretch
+        splitter.setStretchFactor(1, 1)  # Right column takes remaining space
+        splitter.setSizes([300, 500])  # Initial size: 300px for list, 500px for detail
+
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(splitter)
+
+        # === Signal connections ===
         self._detail_widget.item_saved.connect(self._on_saved)
         self._detail_widget.item_deleted.connect(self._on_deleted)
         self.search_box.textChanged.connect(self._on_search_text_changed)
@@ -284,46 +341,46 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         self._results_list.currentItemChanged.connect(lambda cur, prev: self._on_item_activated(cur) if cur else None)
         self._add_btn.clicked.connect(self._on_add_item)
 
-        # Charger les données initiales après l'initialisation complète
+        # Load initial data after complete initialization
         QTimer.singleShot(0, self.reload_items)
 
     @abstractmethod
     def _search_placeholder(self) -> str:
-        """Retourner le placeholder pour le champ de recherche."""
+        """Return the placeholder for the search field."""
         pass
 
     @abstractmethod
     def _search_function(self):
-        """Retourner la fonction de recherche à utiliser."""
+        """Return the search function to use."""
         pass
 
     @abstractmethod
     def _create_detail_widget(self) -> BaseDetailWidget:
-        """Créer et retourner le widget de détail."""
+        """Create and return the detail widget."""
         pass
 
     @abstractmethod
     def _get_all_items(self) -> list:
-        """Récupérer tous les items depuis la base de données."""
+        """Retrieve all items from the database."""
         pass
 
     @abstractmethod
     def _format_list_item(self, item: Any) -> str:
-        """Formater un item pour l'affichage dans la liste."""
+        """Format an item for display in the list."""
         pass
 
     @abstractmethod
     def _on_saved(self, data: dict):
-        """Gérer la sauvegarde d'un item."""
+        """Handle item save."""
         pass
 
     @abstractmethod
     def _on_deleted(self, item_id: int | None):
-        """Gérer la suppression d'un item."""
+        """Handle item deletion."""
         pass
 
     def _on_search_text_changed(self, text: str):
-        """Redémarrer le timer de debounce quand l'utilisateur tape."""
+        """Restart debounce timer when user types."""
         if not text or not text.strip():
             self._search_timer.stop()
             self.reload_items()
@@ -331,7 +388,7 @@ class BaseListView(QWidget, metaclass=QABCMeta):
             self._search_timer.start()
 
     def _perform_search(self):
-        """Exécuter la recherche via le worker en arrière-plan."""
+        """Execute search via background worker."""
         q = self.search_box.text().strip()
         if not q:
             self.reload_items()
@@ -339,7 +396,7 @@ class BaseListView(QWidget, metaclass=QABCMeta):
             self.search_requested.emit(q, 50)
 
     def _on_search_results(self, rows: list):
-        """Gérer les résultats de recherche du worker."""
+        """Handle search results from worker."""
         max_shown = 50
         rows_limited = rows[:max_shown]
 
@@ -347,15 +404,18 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         for item in rows_limited:
             disp = self._format_list_item(item)
             list_item = QListWidgetItem(disp)
-            list_item.setData(Qt.ItemDataRole.UserRole, item)  # Stocker l'objet complet
+            list_item.setData(Qt.ItemDataRole.UserRole, item)  # Store complete object
             self._results_list.addItem(list_item)
 
-        # Sélectionner le premier résultat
+        # Select first result
         if self._results_list.count() > 0:
             self._results_list.setCurrentRow(0)
             self._on_item_activated(self._results_list.item(0))
+        else:
+            # No results: disable delete button
+            self._detail_widget._delete_btn.setEnabled(False)
 
-        # Mettre à jour le compteur
+        # Update counter
         try:
             total = len(self._get_all_items())
             shown = len(rows_limited)
@@ -364,7 +424,7 @@ class BaseListView(QWidget, metaclass=QABCMeta):
             self._results_count_label.setText("")
 
     def reload_items(self, select_first: bool = True):
-        """Recharger la liste des items depuis la base de données."""
+        """Reload item list from database."""
         try:
             items = self._get_all_items()
         except Exception:
@@ -374,31 +434,34 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         for item in items:
             disp = self._format_list_item(item)
             list_item = QListWidgetItem(disp)
-            list_item.setData(Qt.ItemDataRole.UserRole, item)  # Stocker l'objet complet
+            list_item.setData(Qt.ItemDataRole.UserRole, item)  # Store complete object
             self._results_list.addItem(list_item)
 
         total = len(items)
         shown = min(total, 50)
-        self._results_count_label.setText(f"{shown} / {total} résultats")
+        self._results_count_label.setText(f"{shown} / {total} results")
 
         if select_first and self._results_list.count() > 0:
             first_item = self._results_list.item(0)
             self._results_list.setCurrentRow(0)
             if first_item:
                 self._on_item_activated(first_item)
+        elif self._results_list.count() == 0:
+            # No item: disable delete button
+            self._detail_widget._delete_btn.setEnabled(False)
 
     @abstractmethod
     def _on_item_activated(self, item: QListWidgetItem):
-        """Gérer la sélection d'un item dans la liste."""
+        """Handle item selection in the list."""
         pass
 
     @abstractmethod
     def _on_add_item(self):
-        """Créer un item vide et ouvrir l'éditeur."""
+        """Create an empty item and open editor."""
         pass
 
     def cleanup(self):
-        """Nettoyer les ressources (thread de recherche)."""
+        """Clean up resources (search thread)."""
         if hasattr(self, "_search_thread") and self._search_thread.isRunning():
             self._search_thread.quit()
             self._search_thread.wait(1000)

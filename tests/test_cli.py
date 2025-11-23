@@ -59,33 +59,33 @@ def test_db_init_calls_initdb(monkeypatch):
     assert called["count"] == 1
 
 
-def test_db_load_articles_fixtures_monkeypatch(monkeypatch):
-    """Verify `fixtures load-articles` iterates the fixtures and calls create_article.
+def test_db_load_products_fixtures_monkeypatch(monkeypatch):
+    """Verify `fixtures load-products` iterates the fixtures and calls create_product.
 
-    We monkeypatch `create_article` to avoid touching the DB and capture calls.
+    We monkeypatch `create_product` to avoid touching the DB and capture calls.
     """
     calls = []
 
-    def fake_create_article(ref: str, desc: str, prix: float, stock: int, vendu: int):
+    def fake_create_product(reference: str, name: str, price: float, stock: int, sold: int):
         idx = len(calls) + 1
-        calls.append((ref, desc, prix, stock, vendu))
-        return SimpleNamespace(id=idx, ref=ref)
+        calls.append((reference, name, price, stock, sold))
+        return SimpleNamespace(id=idx, reference=reference)
 
-    # monkeypatch the create_article used by the CLI
-    monkeypatch.setattr("sam_invoice.models.crud_article.create_article", fake_create_article)
+    # monkeypatch the create_product used by the CLI
+    monkeypatch.setattr("sam_invoice.models.crud_product.create_product", fake_create_product)
 
     # run the CLI (uses default fixtures file in project)
-    result = runner.invoke(cli_module.app, ["fixtures", "load-articles"], catch_exceptions=False)
+    result = runner.invoke(cli_module.app, ["fixtures", "load-products"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.output
     # ensure the final summary mentions the number loaded
-    assert f"Loaded {len(calls)} articles" in result.output
+    assert f"Loaded {len(calls)} products" in result.output
     # check we loaded the expected number from fixtures file
     import json
     from pathlib import Path
 
     pkg_dir = Path(__file__).resolve().parent.parent
-    fixtures_path = pkg_dir / "fixtures" / "articles.json"
+    fixtures_path = pkg_dir / "fixtures" / "products.json"
     try:
         with fixtures_path.open("r", encoding="utf-8") as fh:
             fixtures = json.load(fh)

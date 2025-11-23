@@ -1,4 +1,4 @@
-"""Interface en ligne de commande pour Sam Invoice."""
+"""Command line interface for Sam Invoice."""
 
 import json
 from pathlib import Path
@@ -7,36 +7,36 @@ import typer
 from rich.console import Console
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
-import sam_invoice.models.crud_article as crud_article
 import sam_invoice.models.crud_customer as crud_customer
+import sam_invoice.models.crud_product as crud_product
 from sam_invoice.models.database import init_db
 
 console = Console()
 app = typer.Typer()
 
-# Groupe de commandes pour la base de données
+# Database commands group
 db_app = typer.Typer()
 app.add_typer(db_app, name="db")
 
-# Groupe de commandes pour les fixtures
+# Fixtures commands group
 fixtures_app = typer.Typer()
 app.add_typer(fixtures_app, name="fixtures")
 
 
 @db_app.command("init")
 def initdb():
-    """Initialiser la base de données SQLite."""
+    """Initialize the SQLite database."""
     init_db()
     typer.echo("Database initialized.")
 
 
 @fixtures_app.command("load-customers")
 def load_customers(path: Path = None, verbose: bool = True):
-    """Charger des clients depuis un fichier JSON de fixtures dans la base de données.
+    """Load customers from a JSON fixtures file into the database.
 
-    Fichier par défaut: `fixtures/customers.json` à la racine du projet.
+    Default file: `fixtures/customers.json` at project root.
     """
-    # Déterminer le chemin du fichier de fixtures
+    # Determine fixtures file path
     if path is None:
         pkg_dir = Path(__file__).resolve().parent.parent
         path = pkg_dir / "fixtures" / "customers.json"
@@ -45,14 +45,14 @@ def load_customers(path: Path = None, verbose: bool = True):
         typer.echo(f"Fixtures file not found: {path}")
         raise typer.Exit(code=1)
 
-    # S'assurer que la DB existe
+    # Ensure DB exists
     init_db()
 
-    # Charger les données JSON
+    # Load JSON data
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
 
-    # Importer avec barre de progression
+    # Import with progress bar
     created = 0
     with Progress(
         TextColumn("{task.description}"),
@@ -68,7 +68,7 @@ def load_customers(path: Path = None, verbose: bool = True):
             address = item.get("address")
             email = item.get("email")
 
-            # Créer le client (pas de vérification de doublon)
+            # Create customer (no duplicate check)
             cust = crud_customer.create_customer(name=name, address=address, email=email)
             if cust:
                 created += 1
@@ -79,29 +79,29 @@ def load_customers(path: Path = None, verbose: bool = True):
     console.print(f"Loaded {created} customers from {path}", style="green")
 
 
-@fixtures_app.command("load-articles")
-def load_articles(path: Path = None, verbose: bool = True):
-    """Charger des articles depuis un fichier JSON de fixtures dans la base de données.
+@fixtures_app.command("load-products")
+def load_products(path: Path = None, verbose: bool = True):
+    """Load products from a JSON fixtures file into the database.
 
-    Fichier par défaut: `fixtures/articles.json` à la racine du projet.
+    Default file: `fixtures/products.json` at project root.
     """
-    # Déterminer le chemin du fichier de fixtures
+    # Determine fixtures file path
     if path is None:
         pkg_dir = Path(__file__).resolve().parent.parent
-        path = pkg_dir / "fixtures" / "articles.json"
+        path = pkg_dir / "fixtures" / "products.json"
 
     if not path.exists():
         typer.echo(f"Fixtures file not found: {path}")
         raise typer.Exit(code=1)
 
-    # S'assurer que la DB existe
+    # Ensure DB exists
     init_db()
 
-    # Charger les données JSON
+    # Load JSON data
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
 
-    # Importer avec barre de progression
+    # Import with progress bar
     created = 0
     with Progress(
         TextColumn("{task.description}"),
@@ -110,24 +110,24 @@ def load_articles(path: Path = None, verbose: bool = True):
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task("Importing articles", total=len(data))
+        task = progress.add_task("Importing products", total=len(data))
 
         for item in data:
-            ref = item.get("ref")
-            desc = item.get("desc")
-            prix = item.get("prix", 0.0)
+            reference = item.get("reference")
+            name = item.get("name")
+            price = item.get("price", 0.0)
             stock = item.get("stock", 0)
-            vendu = item.get("vendu", 0)
+            sold = item.get("sold", 0)
 
-            # Créer l'article (pas de vérification de doublon)
-            article = crud_article.create_article(ref=ref, desc=desc, prix=prix, stock=stock, vendu=vendu)
-            if article:
+            # Create product (no duplicate check)
+            product = crud_product.create_product(reference=reference, name=name, price=price, stock=stock, sold=sold)
+            if product:
                 created += 1
                 progress.advance(task)
                 if verbose:
-                    console.print(f"Created article {article.id} - {article.ref}")
+                    console.print(f"Created product {product.id} - {product.reference}")
 
-    console.print(f"Loaded {created} articles from {path}", style="green")
+    console.print(f"Loaded {created} products from {path}", style="green")
 
 
 def main():

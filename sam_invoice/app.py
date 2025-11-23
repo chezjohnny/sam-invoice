@@ -1,10 +1,11 @@
-"""Application principale Sam Invoice."""
+"""Sam Invoice main application."""
 
 import os
 import signal
 import sys
 from pathlib import Path
 
+import qtawesome as qta
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
@@ -18,12 +19,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sam_invoice.ui.articles_view import ArticlesView
 from sam_invoice.ui.customer_view import CustomerView
+from sam_invoice.ui.products_view import ProductsView
 
 
 class MainWindow(QMainWindow):
-    """Fenêtre principale de l'application Sam Invoice."""
+    """Sam Invoice application main window."""
 
     def __init__(self):
         super().__init__()
@@ -33,34 +34,28 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
 
-        # === En-tête ===
-        header = QLabel("Sam Invoice")
-        header.setAlignment(Qt.AlignCenter)
-        header.setStyleSheet("font-size:18pt; font-weight:600; padding:8px;")
-        main_layout.addWidget(header)
-
-        # === Barre d'outils ===
+        # === Toolbar ===
         toolbar = self._create_toolbar()
         self.addToolBar(toolbar)
 
-        # === Zone empilée pour les vues ===
+        # === Stacked area for views ===
         self.stack = QStackedWidget()
 
-        # Vue Customers (Home)
+        # Customers view (Home)
         self._customer_view = CustomerView()
         self.stack.addWidget(self._customer_view)
 
-        # Vue Articles
-        self._articles_view = ArticlesView()
-        self.stack.addWidget(self._articles_view)
+        # Products view
+        self._products_view = ProductsView()
+        self.stack.addWidget(self._products_view)
 
-        # Vue Invoices (placeholder)
+        # Invoices view (placeholder)
         invoices_placeholder = self._create_placeholder("Invoices (coming soon)")
         self.stack.addWidget(invoices_placeholder)
 
         main_layout.addWidget(self.stack)
 
-        # === Barre de status ===
+        # === Status bar ===
         self.status = QLabel("")
         self.status.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.status)
@@ -73,16 +68,16 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-        # === Connexions des actions de la toolbar ===
+        # === Toolbar action connections ===
         self.act_home.triggered.connect(lambda: self._set_active(self.act_home) or self._show_view(0, "Customers"))
         self.act_articles.triggered.connect(
-            lambda: self._set_active(self.act_articles) or self._show_view(1, "Articles")
+            lambda: self._set_active(self.act_articles) or self._show_view(1, "Products")
         )
         self.act_invoices.triggered.connect(
             lambda: self._set_active(self.act_invoices) or self._show_view(2, "Invoices")
         )
 
-        # Activer Home par défaut
+        # Activate Home by default
         self._set_active(self.act_home)
 
     def _create_toolbar(self) -> QToolBar:
@@ -90,33 +85,34 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("Main")
         toolbar.setMovable(False)
 
-        # Unified toolbar sur macOS
+        # Unified toolbar on macOS
         if sys.platform == "darwin":
             self.setUnifiedTitleAndToolBarOnMac(True)
 
-        # Charger les icônes
-        icons_dir = Path(__file__).parent / "assets" / "icons"
-        home_icon = self._load_icon(icons_dir / "home.svg", QStyle.SP_DirHomeIcon)
-        articles_icon = self._load_icon(icons_dir / "articles.svg", QStyle.SP_FileDialogDetailedView)
-        invoices_icon = self._load_icon(icons_dir / "invoices.svg", QStyle.SP_FileIcon)
+        # Dark gray color for all icons
+        icon_color = "#444444"
 
-        # Créer les actions
+        # Create icons with qtawesome
+        home_icon = qta.icon("fa5s.users", color=icon_color)
+        articles_icon = qta.icon("fa5s.wine-bottle", color=icon_color)
+        invoices_icon = qta.icon("fa5s.file-invoice-dollar", color=icon_color)
+
+        # Create actions
         self.act_home = QAction(home_icon, "Customers", self)
         self.act_home.setCheckable(True)
-        self.act_articles = QAction(articles_icon, "Articles", self)
+        self.act_articles = QAction(articles_icon, "Products", self)
         self.act_articles.setCheckable(True)
         self.act_invoices = QAction(invoices_icon, "Invoices", self)
         self.act_invoices.setCheckable(True)
 
-        # Créer les variants colorés des icônes
-        active_color = QColor("#3b82f6")
+        # Store icons (no need for colored variants)
         self._icon_pairs = {
-            self.act_home: (home_icon, self._colorize_icon(home_icon, active_color)),
-            self.act_articles: (articles_icon, self._colorize_icon(articles_icon, active_color)),
-            self.act_invoices: (invoices_icon, self._colorize_icon(invoices_icon, active_color)),
+            self.act_home: (home_icon, home_icon),
+            self.act_articles: (articles_icon, articles_icon),
+            self.act_invoices: (invoices_icon, invoices_icon),
         }
 
-        # Ajouter les actions à la toolbar
+        # Add actions to toolbar
         toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         toolbar.addAction(self.act_home)
         toolbar.addAction(self.act_articles)
@@ -156,42 +152,42 @@ class MainWindow(QMainWindow):
         return widget
 
     def _set_active(self, action: QAction):
-        """Définir une action comme active et désactiver les autres."""
+        """Set an action as active and deactivate others."""
         for act in (self.act_home, self.act_articles, self.act_invoices):
             is_active = act is action
             act.setChecked(is_active)
 
-            # Changer l'icône selon l'état actif/inactif
+            # Change icon based on active/inactive state
             pair = self._icon_pairs.get(act)
             if pair:
                 normal_icon, active_icon = pair
                 act.setIcon(active_icon if is_active else normal_icon)
 
     def _show_view(self, index: int, label: str):
-        """Afficher une vue spécifique dans le stack."""
+        """Display a specific view in the stack."""
         self.stack.setCurrentIndex(index)
         self.status.setText(label)
 
     def closeEvent(self, event):
-        """Nettoyer les ressources avant de fermer l'application."""
-        # Nettoyer les threads dans les vues
+        """Clean up resources before closing the application."""
+        # Clean up threads in views
         if hasattr(self, "_customer_view"):
             self._customer_view.cleanup()
-        if hasattr(self, "_articles_view"):
-            # Ajouter cleanup si ArticlesView a aussi un thread
-            if hasattr(self._articles_view, "cleanup"):
-                self._articles_view.cleanup()
+        if hasattr(self, "_products_view"):
+            # Add cleanup if ProductsView also has a thread
+            if hasattr(self._products_view, "cleanup"):
+                self._products_view.cleanup()
         super().closeEvent(event)
 
 
 def main():
-    """Point d'entrée principal de l'application."""
-    # Éviter les messages Qt verbeux
+    """Main application entry point."""
+    # Avoid verbose Qt messages
     os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts=false")
 
     app = QApplication(sys.argv)
 
-    # Découvrir les styles disponibles
+    # Discover available styles
     try:
         from PySide6.QtWidgets import QStyleFactory
 
@@ -199,14 +195,14 @@ def main():
     except Exception:
         available = []
 
-    # Respecter le style demandé en ligne de commande (-style macOS)
+    # Respect requested style from command line (-style macOS)
     requested_style = None
     for i, a in enumerate(sys.argv):
         if a == "-style" and i + 1 < len(sys.argv):
             requested_style = sys.argv[i + 1]
             break
 
-    # Appliquer le style
+    # Apply style
     if requested_style:
         if requested_style in available:
             app.setStyle(requested_style)
@@ -215,17 +211,17 @@ def main():
             if available:
                 app.setStyle(fallback)
     else:
-        # Par défaut macOS si disponible
+        # Default to macOS if available
         if "macOS" in available:
             app.setStyle("macOS")
 
-    # Déterminer la classe de style
+    # Determine style class
     try:
         style_class = app.style().__class__.__name__
     except Exception:
         style_class = None
 
-    # Palette macOS si QCommonStyle
+    # macOS palette if QCommonStyle
     if requested_style and requested_style.lower().startswith("mac") and style_class == "QCommonStyle":
         from PySide6.QtGui import QColor, QPalette
 
@@ -238,7 +234,7 @@ def main():
         mac_pal.setColor(QPalette.ColorRole.Highlight, QColor("#a5cdff"))
         app.setPalette(mac_pal)
 
-    # Charger le QSS macOS
+    # Load macOS QSS
     try:
         qss_path = Path(__file__).parent / "assets" / "styles" / "macos.qss"
         if qss_path.exists() and (
