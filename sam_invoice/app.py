@@ -6,7 +6,13 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from sam_invoice.models import database
 from sam_invoice.style_manager import setup_application_style
@@ -31,7 +37,7 @@ class MainWindow(QMainWindow):
         last_db = self.settings.value("last_database", None)
         if last_db and Path(last_db).exists():
             self.current_db_path = Path(last_db)
-            database.set_database_path(self.current_db_path)
+            database.db_manager.set_database_path(self.current_db_path)
         else:
             self.current_db_path = database.DEFAULT_DB_PATH
 
@@ -68,8 +74,8 @@ class MainWindow(QMainWindow):
 
         # === Toolbar action connections ===
         self.act_home.triggered.connect(lambda: set_active_toolbar_action(self, self.act_home) or self._show_view(0))
-        self.act_articles.triggered.connect(
-            lambda: set_active_toolbar_action(self, self.act_articles) or self._show_view(1)
+        self.act_products.triggered.connect(
+            lambda: set_active_toolbar_action(self, self.act_products) or self._show_view(1)
         )
         self.act_invoices.triggered.connect(
             lambda: set_active_toolbar_action(self, self.act_invoices) or self._show_view(2)

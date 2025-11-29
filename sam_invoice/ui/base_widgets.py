@@ -17,7 +17,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sam_invoice.ui.widget_helpers import ClickableLabel, SearchWorker, create_icon_button
+from sam_invoice.ui.widget_helpers import (
+    ClickableLabel,
+    SearchWorker,
+    create_icon_button,
+)
 
 
 # Combined metaclass to resolve conflict between QWidget and ABC
@@ -28,7 +32,7 @@ class QABCMeta(type(QWidget), ABCMeta):
 
 
 class BaseDetailWidget(QWidget, metaclass=QABCMeta):
-    """Base class for detail widgets (Customer, Article, etc.).
+    """Base class for detail widgets (Customer, Product, etc.).
 
     Provides common structure: avatar, editable fields, action buttons,
     validation, and edit mode management.
@@ -161,7 +165,7 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         icon_color = "#444444"
         icon_map = {
             "customers": "fa5s.users",
-            "articles": "fa5s.wine-bottle",
+            "products": "fa5s.wine-bottle",
         }
 
         icon_key = icon_map.get(icon_name, "fa5s.file")
@@ -237,7 +241,7 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
 
 
 class BaseListView(QWidget, metaclass=QABCMeta):
-    """Base class for views with list and detail (Customers, Articles, etc.).
+    """Base class for views with list and detail (Customers, Products, etc.).
 
     Provides: search with debounce, list, detail, and CRUD management.
     """

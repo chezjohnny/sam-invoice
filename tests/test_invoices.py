@@ -1,5 +1,6 @@
 from datetime import date
 
+from sam_invoice.models.crud_customer import customer_crud
 from sam_invoice.models.crud_invoice import invoice_crud
 
 
@@ -56,3 +57,55 @@ def test_update_invoice(in_memory_db):
     # Verify persistence
     fetched = invoice_crud.get_by_id(inv.id)
     assert fetched.customer_name == "Updated"
+
+
+def test_get_invoices_for_customer(in_memory_db):
+    """Verify get_for_customer returns invoices filtered by customer ID."""
+    # Create customers
+    cust1 = customer_crud.create(name="Alice Martin", address="123 Main St", email="alice@example.com")
+    cust2 = customer_crud.create(name="Bob Smith", address="456 Oak Ave", email="bob@example.com")
+
+    # Create invoices for customer 1
+    _ = invoice_crud.create(
+        reference="INV-001",
+        date=date(2024, 1, 10),
+        customer_id=cust1.id,
+        customer_name="Alice Martin",
+        items_data=[],
+    )
+    _ = invoice_crud.create(
+        reference="INV-002",
+        date=date(2024, 1, 20),
+        customer_id=cust1.id,
+        customer_name="Alice Martin",
+        items_data=[],
+    )
+
+    # Create invoice for customer 2
+    _ = invoice_crud.create(
+        reference="INV-003",
+        date=date(2024, 2, 15),
+        customer_id=cust2.id,
+        customer_name="Bob Smith",
+        items_data=[],
+    )
+
+    # Test getting invoices for customer 1
+    invoices_cust1 = invoice_crud.get_for_customer(cust1.id)
+    assert len(invoices_cust1) == 2
+    assert all(inv.customer_id == cust1.id for inv in invoices_cust1)
+    assert invoices_cust1[0].reference == "INV-002"  # Sorted by date descending
+    assert invoices_cust1[1].reference == "INV-001"
+
+    # Test getting invoices for customer 2
+    invoices_cust2 = invoice_crud.get_for_customer(cust2.id)
+    assert len(invoices_cust2) == 1
+    assert invoices_cust2[0].reference == "INV-003"
+
+    # Test with non-existent customer ID
+    invoices_empty = invoice_crud.get_for_customer(999)
+    assert len(invoices_empty) == 0
+
+    # Test with None
+    invoices_none = invoice_crud.get_for_customer(None)
+    assert len(invoices_none) == 0

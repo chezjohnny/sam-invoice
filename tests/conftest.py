@@ -18,10 +18,12 @@ def in_memory_db(monkeypatch):
     dropping all tables and disposing the engine.
     """
 
+    # TODO: use databasemanager instead of monkeypatch
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
-    monkeypatch.setattr(database, "SessionLocal", Session)
+    # Monkeypatch sur l'attribut du gestionnaire désormais
+    monkeypatch.setattr(database.db_manager, "SessionLocal", Session)
     try:
         yield
     finally:

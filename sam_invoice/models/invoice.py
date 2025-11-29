@@ -33,6 +33,7 @@ class Invoice(Base):
 
     # Relationships
     customer = relationship("Customer", foreign_keys=[customer_id])
+    # TODO: explain
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan", lazy="selectin")
 
 

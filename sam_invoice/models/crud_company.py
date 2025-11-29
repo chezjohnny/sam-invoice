@@ -6,7 +6,7 @@ from sam_invoice.models.company import Company
 
 def get_company():
     """Get company information (returns first record or None)."""
-    with database.SessionLocal() as session:
+    with database.db_manager.get_session() as session:
         return session.query(Company).first()
 
 
@@ -23,7 +23,7 @@ def create_or_update_company(name: str, address: str = None, email: str = None, 
     Returns:
         Company: The created or updated company record
     """
-    with database.SessionLocal() as session:
+    with database.db_manager.get_session() as session:
         company = session.query(Company).first()
 
         if company:

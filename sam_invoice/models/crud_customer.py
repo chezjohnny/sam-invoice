@@ -24,7 +24,7 @@ class CustomerCRUD(BaseCRUD[Customer]):
         Returns:
             The created customer
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             customer = Customer(name=name, address=address, email=email)
             session.add(customer)
             session.commit()
@@ -43,7 +43,7 @@ class CustomerCRUD(BaseCRUD[Customer]):
         Returns:
             The updated customer if found, None otherwise
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             customer = session.query(Customer).filter(Customer.id == customer_id).first()
             if customer:
                 if name is not None:

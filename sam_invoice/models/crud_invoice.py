@@ -40,7 +40,8 @@ class InvoiceCRUD(BaseCRUD[Invoice]):
             tax: Tax (TVA)
             total: Total (TTC)
         """
-        with database.SessionLocal() as session:
+        # TODO: compute totals
+        with database.db_manager.get_session() as session:
             invoice = Invoice(
                 reference=reference,
                 date=date,
@@ -79,9 +80,10 @@ class InvoiceCRUD(BaseCRUD[Invoice]):
         Returns:
             The updated invoice if found, None otherwise
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             invoice = session.query(Invoice).filter(Invoice.id == invoice_id).first()
             if invoice:
+                # TODO: uniformize the approach
                 # Update fields
                 for key, value in kwargs.items():
                     if hasattr(invoice, key):
@@ -122,33 +124,23 @@ class InvoiceCRUD(BaseCRUD[Invoice]):
         """Sort invoices by date descending."""
         return desc(Invoice.date)
 
-    def get_for_customer(self, customer_name: str) -> list[Invoice]:
-        """Get invoices for a specific customer (flexible match).
+    def get_for_customer(self, customer_id: int) -> list[Invoice]:
+        """Get invoices for a specific customer by ID.
 
-        Matches if all parts of the customer name appear in the invoice's customer_name.
-        Case-insensitive.
+        Args:
+            customer_id: The customer's ID
+
+        Returns:
+            List of invoices for this customer, sorted by date (newest first)
         """
-        if not customer_name:
+        if not customer_id:
             return []
 
-        parts = customer_name.strip().split()
-        if not parts:
-            return []
-
-        with database.SessionLocal() as session:
-            query = session.query(Invoice)
-
-            # Build AND conditions for each name part
-            conditions = []
-            for part in parts:
-                conditions.append(Invoice.customer_name.ilike(f"%{part}%"))
-
-            # Apply all conditions (AND)
-            from sqlalchemy import and_
-
-            query = query.filter(and_(*conditions))
-
-            return query.order_by(desc(Invoice.date)).all()
+        with database.db_manager.get_session() as session:
+            invoices = (
+                session.query(Invoice).filter(Invoice.customer_id == customer_id).order_by(desc(Invoice.date)).all()
+            )
+            return invoices
 
 
 # Create singleton instance

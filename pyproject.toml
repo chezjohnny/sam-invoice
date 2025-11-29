@@ -6,9 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pyside6>=6.10.1",
-    "pytest>=7.0.0",
     "qtawesome>=1.4.0",
-    "ruff>=0.1.0",
     "sqlalchemy>=2.0",
     "reportlab>=4.0.0",
 ]
@@ -18,8 +16,12 @@ dev = [
     "ipython>=8.0.0",
     "poethepoet>=0.24.4",
     "pyinstaller>=6.0.0",
+    "ruff>=0.1.0",
     "rich>=13.0.0",
     "typer>=0.9.0",
+    "pytest>=7.0.0",
+    "pytest-ruff>=0.5",
+    "pytest-cov>=7.0.0",
 ]
 
 [tool.ruff]
@@ -51,6 +53,12 @@ check = {sequence = ["format", "lint", "tests"], help = "Runs format, lint and t
 fix = {sequence = ["lint-fix", "format-fix"], help = "Fixes linting issues and formats code"}
 run = {cmd = "python ./sam_invoice/app.py -style macOS", help = "Run the application"}
 build = {cmd = "python tools/build_macos.py", help = "Build macOS application bundle"}
+db-reset = {sequence = ["db-init", "db-load-fixtures"], help = "Reset database and reload all fixtures"}
+db-init = {cmd = "python -m sam_invoice.cli db init", help = "Initialize the database"}
+db-load-fixtures = {sequence = ["db-load-customers", "db-load-products", "db-load-invoices"], help = "Load all fixtures"}
+db-load-customers = {cmd = "python -m sam_invoice.cli fixtures load-customers", help = "Load customers fixtures"}
+db-load-products = {cmd = "python -m sam_invoice.cli fixtures load-products", help = "Load products fixtures"}
+db-load-invoices = {cmd = "python -m sam_invoice.cli fixtures load-invoices", help = "Load invoices fixtures"}
 
 [project.scripts]
 sam-invoice = "sam_invoice.cli:main"
