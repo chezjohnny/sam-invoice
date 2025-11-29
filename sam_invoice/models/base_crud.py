@@ -5,7 +5,7 @@ from typing import TypeVar
 
 from sqlalchemy import or_
 
-from .database import SessionLocal
+from . import database
 
 T = TypeVar("T")
 
@@ -31,7 +31,7 @@ class BaseCRUD[T](ABC):
         Returns:
             List of all entities
         """
-        with SessionLocal() as session:
+        with database.SessionLocal() as session:
             return session.query(self.model).order_by(self._get_sort_field()).all()
 
     def get_by_id(self, entity_id: int) -> T | None:
@@ -43,8 +43,12 @@ class BaseCRUD[T](ABC):
         Returns:
             The entity if found, None otherwise
         """
-        with SessionLocal() as session:
-            return session.query(self.model).filter(self.model.id == entity_id).first()
+        with database.SessionLocal() as session:
+            if hasattr(self.model, "id"):
+                return session.query(self.model).filter(self.model.id == entity_id).first()
+            elif hasattr(self.model, "reference"):
+                return session.query(self.model).filter(self.model.reference == entity_id).first()
+            return None
 
     def delete(self, entity_id: int) -> T | None:
         """Delete an entity from the database.
@@ -55,8 +59,14 @@ class BaseCRUD[T](ABC):
         Returns:
             The deleted entity if found, None otherwise
         """
-        with SessionLocal() as session:
-            entity = session.query(self.model).filter(self.model.id == entity_id).first()
+        with database.SessionLocal() as session:
+            if hasattr(self.model, "id"):
+                entity = session.query(self.model).filter(self.model.id == entity_id).first()
+            elif hasattr(self.model, "reference"):
+                entity = session.query(self.model).filter(self.model.reference == entity_id).first()
+            else:
+                entity = None
+
             if entity:
                 session.delete(entity)
                 session.commit()
@@ -72,7 +82,7 @@ class BaseCRUD[T](ABC):
         Returns:
             List of matching entities
         """
-        with SessionLocal() as session:
+        with database.SessionLocal() as session:
             q = (query or "").strip()
 
             # If no search query, return all
@@ -83,9 +93,10 @@ class BaseCRUD[T](ABC):
             # Build search filters
             filters = self._get_search_filters(q)
 
-            # Add ID filter if search is numeric
+            # Add ID filter if search is numeric and model has ID
             try:
-                filters.append(self.model.id == int(q))
+                if hasattr(self.model, "id"):
+                    filters.append(self.model.id == int(q))
             except ValueError:
                 pass
 

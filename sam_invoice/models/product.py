@@ -10,8 +10,7 @@ class Product(Base):
 
     __tablename__ = "products"
 
-    id = Column(Integer, primary_key=True)
-    reference = Column(String, nullable=False)  # Unique product reference
+    reference = Column(String, primary_key=True)  # Product reference as PK
     name = Column(String)  # Product name/description
     price = Column(Float)  # Unit price
     stock = Column(Integer)  # Quantity in stock

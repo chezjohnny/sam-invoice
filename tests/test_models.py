@@ -116,7 +116,7 @@ def test_db_constraints_short_address(in_memory_db):
 def test_create_and_query_article(in_memory_db):
     """Create a product and verify it can be queried back via the CRUD API."""
     art = product_crud.create("ART-001", "Test Article", price=25.50, stock=10, sold=5)
-    assert art.id is not None
+    assert art.reference == "ART-001"
     assert art.reference == "ART-001"
     assert art.name == "Test Article"
     assert art.price == 25.50
@@ -139,8 +139,9 @@ def test_search_products(in_memory_db):
     assert len(all_res) >= 3
 
     # Search by exact id (string)
-    res_id = product_crud.search(str(art1.id))
-    assert any(r.id == art1.id for r in res_id)
+    # Search by exact reference
+    res_ref = product_crud.search(art1.reference)
+    assert any(r.reference == art1.reference for r in res_ref)
 
     # Partial ref (case-insensitive)
     res_ref = product_crud.search("vin")
@@ -187,7 +188,7 @@ def test_update_product(in_memory_db):
     art = product_crud.create("TEST-001", "Original", price=10.0, stock=5, sold=2)
     assert art.name == "Original"
 
-    updated = product_crud.update(art.id, name="Updated Description", price=15.0, stock=10)
+    updated = product_crud.update(art.reference, name="Updated Description", price=15.0, stock=10)
     assert updated.name == "Updated Description"
     assert updated.price == 15.0
     assert updated.stock == 10
@@ -197,15 +198,15 @@ def test_update_product(in_memory_db):
 def test_delete_product(in_memory_db):
     """Verify deleting a product removes it from the database."""
     art = product_crud.create("DEL-001", "To Delete", price=20.0)
-    art_id = art.id
+    art_ref = art.reference
 
     # Verify it exists
-    found = product_crud.get_by_id(art_id)
+    found = product_crud.get_by_id(art_ref)
     assert found is not None
 
     # Delete it
-    product_crud.delete(art_id)
+    product_crud.delete(art_ref)
 
     # Verify it's gone
-    found_after = product_crud.get_by_id(art_id)
+    found_after = product_crud.get_by_id(art_ref)
     assert found_after is None

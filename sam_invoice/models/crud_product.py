@@ -2,8 +2,8 @@
 
 from sqlalchemy import func
 
+from . import database
 from .base_crud import BaseCRUD
-from .database import SessionLocal
 from .product import Product
 
 
@@ -33,7 +33,7 @@ class ProductCRUD(BaseCRUD[Product]):
         Returns:
             The created product
         """
-        with SessionLocal() as session:
+        with database.SessionLocal() as session:
             product = Product(reference=reference, name=name, price=price, stock=stock, sold=sold)
             session.add(product)
             session.commit()
@@ -42,8 +42,7 @@ class ProductCRUD(BaseCRUD[Product]):
 
     def update(
         self,
-        product_id: int,
-        reference: str = None,
+        product_ref: str,
         name: str = None,
         price: float = None,
         stock: int = None,
@@ -52,8 +51,7 @@ class ProductCRUD(BaseCRUD[Product]):
         """Update an existing product.
 
         Args:
-            product_id: The product's ID
-            reference: New reference (optional)
+            product_ref: The product's reference (PK)
             name: New name (optional)
             price: New price (optional)
             stock: New stock quantity (optional)
@@ -62,11 +60,9 @@ class ProductCRUD(BaseCRUD[Product]):
         Returns:
             The updated product if found, None otherwise
         """
-        with SessionLocal() as session:
-            product = session.query(Product).filter(Product.id == product_id).first()
+        with database.SessionLocal() as session:
+            product = session.query(Product).filter(Product.reference == product_ref).first()
             if product:
-                if reference is not None:
-                    product.reference = reference
                 if name is not None:
                     product.name = name
                 if price is not None:

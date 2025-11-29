@@ -1,12 +1,12 @@
 """CRUD operations for company information."""
 
+from sam_invoice.models import database
 from sam_invoice.models.company import Company
-from sam_invoice.models.database import SessionLocal
 
 
 def get_company():
     """Get company information (returns first record or None)."""
-    with SessionLocal() as session:
+    with database.SessionLocal() as session:
         return session.query(Company).first()
 
 
@@ -23,7 +23,7 @@ def create_or_update_company(name: str, address: str = None, email: str = None, 
     Returns:
         Company: The created or updated company record
     """
-    with SessionLocal() as session:
+    with database.SessionLocal() as session:
         company = session.query(Company).first()
 
         if company:

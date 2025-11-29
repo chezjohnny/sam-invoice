@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Import all models to register them with Base metadata
-from . import company, customer, product  # noqa: F401
+from . import company, customer, invoice, product  # noqa: F401
 from .customer import Base
 
 # Default database path

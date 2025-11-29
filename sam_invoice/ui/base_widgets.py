@@ -319,6 +319,9 @@ class BaseListView(QWidget, metaclass=QABCMeta):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self._splitter)
 
+        # Connect add button
+        self._add_btn.clicked.connect(self._on_add_item)
+
         # === Signal connections ===
         self._detail_widget.item_saved.connect(self._on_saved)
         self._detail_widget.item_deleted.connect(self._on_deleted)
@@ -330,6 +333,33 @@ class BaseListView(QWidget, metaclass=QABCMeta):
 
         # Load initial data after complete initialization
         QTimer.singleShot(0, self.reload_items)
+
+    def closeEvent(self, event):
+        """Cleanup resources when widget is closed."""
+        self._cleanup_thread()
+        super().closeEvent(event)
+
+    def __del__(self):
+        """Cleanup resources when widget is destroyed."""
+        self._cleanup_thread()
+
+    def _cleanup_thread(self):
+        """Stop and wait for search thread to finish."""
+        try:
+            if hasattr(self, "_search_thread") and self._search_thread and self._search_thread.isRunning():
+                # Request thread to quit but don't wait (non-blocking)
+                self._search_thread.quit()
+                # Only wait briefly to avoid hanging on exit
+                if not self._search_thread.wait(100):  # 100ms timeout
+                    # If thread doesn't quit quickly, that's OK - OS will clean it up
+                    pass
+        except RuntimeError:
+            # Qt object may already be deleted, that's OK
+            pass
+
+    def cleanup(self):
+        """Public cleanup method for external callers."""
+        self._cleanup_thread()
 
     @abstractmethod
     def _search_placeholder(self) -> str:
@@ -448,9 +478,3 @@ class BaseListView(QWidget, metaclass=QABCMeta):
     def _on_add_item(self):
         """Create an empty item and open editor."""
         pass
-
-    def cleanup(self):
-        """Clean up resources (search thread)."""
-        if hasattr(self, "_search_thread") and self._search_thread.isRunning():
-            self._search_thread.quit()
-            self._search_thread.wait(1000)

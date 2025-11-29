@@ -1,6 +1,7 @@
 """Command line interface for Sam Invoice."""
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +10,7 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
 from sam_invoice.models.crud_customer import customer_crud
+from sam_invoice.models.crud_invoice import invoice_crud
 from sam_invoice.models.crud_product import product_crud
 from sam_invoice.models.database import init_db, set_database_path
 
@@ -169,6 +171,117 @@ def load_products(
         console.print(f"Loaded {created} products from {path} ({errors} errors)", style="yellow")
     else:
         console.print(f"Loaded {created} products from {path}", style="green")
+
+
+@fixtures_app.command("load-invoices")
+def load_invoices(
+    path: Annotated[Path, typer.Argument(help="Path to invoices JSON file")] = None,
+    db_path: Annotated[Path, typer.Option("--db", help="Path to database file")] = None,
+    verbose: bool = True,
+):
+    """Load invoices from a JSON fixtures file into the database.
+
+    Default file: `out/factures.json`.
+    """
+    # Set database path if provided
+    if db_path:
+        set_database_path(db_path)
+
+    # Determine fixtures file path
+    if path is None:
+        # Default to out/factures.json relative to CWD or project root
+        path = Path.cwd() / "out" / "factures.json"
+        if not path.exists():
+            # Fallback to project root if running from elsewhere
+            pkg_dir = Path(__file__).resolve().parent.parent
+            path = pkg_dir / "out" / "factures.json"
+
+    if not path.exists():
+        typer.echo(f"Fixtures file not found: {path}")
+        raise typer.Exit(code=1)
+
+    # Ensure DB exists
+    init_db()
+
+    # Load JSON data
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+
+    # Import with progress bar
+    created = 0
+    errors = 0
+    with Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Importing invoices", total=len(data))
+
+        for item in data:
+            reference = item.get("ref")
+            date_str = item.get("date")
+            due_date_str = item.get("echeance")
+            customer_raw = item.get("client", "")
+
+            # Parse customer name and address
+            customer_lines = customer_raw.strip().split("\n")
+            customer_name = customer_lines[0].strip() if customer_lines else "Unknown"
+            customer_address = "\n".join(line.strip() for line in customer_lines[1:] if line.strip())
+
+            # Parse totals
+            subtotal = float(item.get("sumHT", 0))
+            tax = float(item.get("sumTVA", 0))
+            total = float(item.get("sumTTC", 0))
+
+            # Parse items
+            achats = item.get("achats", [])
+            items_data = []
+            for achat in achats:
+                items_data.append(
+                    {
+                        "product_name": achat.get("desc", ""),
+                        "quantity": int(achat.get("quantite", 1)),
+                        "unit_price": float(achat.get("puht", 0)),
+                        "total_price": float(achat.get("pht", 0)),
+                    }
+                )
+
+            try:
+                # Parse dates
+                inv_date = date.fromisoformat(date_str) if date_str else date.today()
+                due_date = date.fromisoformat(due_date_str) if due_date_str else None
+
+                # Create invoice
+                inv = invoice_crud.create(
+                    reference=reference,
+                    date=inv_date,
+                    due_date=due_date,
+                    customer_name=customer_name,
+                    customer_address=customer_address,
+                    subtotal=subtotal,
+                    tax=tax,
+                    total=total,
+                    items_data=items_data,
+                )
+
+                if inv:
+                    created += 1
+                    progress.advance(task)
+                    if verbose:
+                        console.print(f"Created invoice {inv.reference} - {inv.customer_name}")
+                else:
+                    progress.advance(task)
+            except Exception as e:
+                errors += 1
+                progress.advance(task)
+                console.print(f"[yellow]Warning: Failed to create invoice '{reference}': {e}[/yellow]")
+
+    if errors > 0:
+        console.print(f"Loaded {created} invoices from {path} ({errors} errors)", style="yellow")
+    else:
+        console.print(f"Loaded {created} invoices from {path}", style="green")
 
 
 def main():

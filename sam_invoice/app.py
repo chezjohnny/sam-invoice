@@ -5,16 +5,16 @@ import signal
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 
 from sam_invoice.models import database
 from sam_invoice.style_manager import setup_application_style
 from sam_invoice.ui.customer_view import CustomerView
+from sam_invoice.ui.invoices_view import InvoicesView
 from sam_invoice.ui.menu_bar import create_menu_bar
 from sam_invoice.ui.products_view import ProductsView
 from sam_invoice.ui.toolbar import create_toolbar, set_active_toolbar_action
-from sam_invoice.ui.widget_helpers import create_placeholder
 
 
 class MainWindow(QMainWindow):
@@ -58,9 +58,9 @@ class MainWindow(QMainWindow):
         self._products_view = ProductsView()
         self.stack.addWidget(self._products_view)
 
-        # Invoices view (placeholder)
-        invoices_placeholder = create_placeholder("Invoices (coming soon)")
-        self.stack.addWidget(invoices_placeholder)
+        # Invoices view
+        self._invoices_view = InvoicesView()
+        self.stack.addWidget(self._invoices_view)
 
         main_layout.addWidget(self.stack)
 
@@ -99,6 +99,10 @@ class MainWindow(QMainWindow):
         # Reload products view
         if hasattr(self._products_view, "reload_items"):
             self._products_view.reload_items()
+
+        # Reload invoices view
+        if hasattr(self._invoices_view, "refresh"):
+            self._invoices_view.refresh()
 
     def _restore_window_state(self):
         """Restore window geometry and state from settings."""
@@ -161,11 +165,12 @@ class MainWindow(QMainWindow):
         # Save window state
         self._save_window_state()
 
-        # Clean up threads in views
-        if hasattr(self, "_customer_view"):
-            self._customer_view.cleanup()
-        if hasattr(self, "_products_view") and hasattr(self._products_view, "cleanup"):
-            self._products_view.cleanup()
+        # Note: We intentionally do NOT stop threads here because:
+        # 1. Qt will handle cleanup automatically during widget destruction
+        # 2. Manually stopping threads during Ctrl+C can cause SIGABRT crashes
+        #    due to Qt's destruction order
+        # 3. The OS will clean up any remaining resources on process exit
+
         super().closeEvent(event)
 
 
@@ -215,17 +220,39 @@ def _set_macos_process_name() -> None:
 def _setup_signal_handlers(app: QApplication) -> None:
     """Configure Ctrl-C handling for clean shutdown."""
 
-    def sigint_handler(signum, frame):
-        """Handler for Ctrl-C to cleanly close the application."""
+    # Create a socket pair for signal communication
+    import socket
+
+    from PySide6.QtCore import QSocketNotifier
+
+    # Create a socket pair
+    signal_sock = socket.socketpair()
+
+    # Set both sockets to non-blocking mode (required by set_wakeup_fd)
+    signal_sock[0].setblocking(False)
+    signal_sock[1].setblocking(False)
+
+    # Set up the write end for signal wakeup
+    signal.set_wakeup_fd(signal_sock[1].fileno())
+
+    # Create a Qt socket notifier for the read end
+    notifier = QSocketNotifier(signal_sock[0].fileno(), QSocketNotifier.Type.Read, app)
+
+    def handle_signal():
+        """Handle the signal notification."""
+        # Read the signal byte
+        signal_sock[0].recv(1)
         print("\nClosing application...")
-        QApplication.quit()
+        # Force immediate exit to avoid Qt cleanup issues
+        os._exit(0)
+
+    notifier.activated.connect(handle_signal)
+
+    def sigint_handler(signum, frame):
+        """SIGINT handler - just pass, the socket notifier will handle it."""
+        pass
 
     signal.signal(signal.SIGINT, sigint_handler)
-
-    # Timer to allow Python to process signals during Qt event loop
-    timer = QTimer()
-    timer.timeout.connect(lambda: None)  # Just to wake up the event loop
-    timer.start(500)  # Every 500ms
 
 
 if __name__ == "__main__":
