@@ -201,20 +201,26 @@ class CustomerDetailWidget(BaseDetailWidget):
             self._invoice_btn.setEnabled(self._current_id is not None)
 
             # Load invoice history and last order
-            self._load_invoices_for_customer(cust.name)
-            self._load_last_order_items(cust.name)
+            self._load_invoices_for_customer(cust.id)
+            self._load_last_order_items(cust.id)
 
-    def _load_invoices_for_customer(self, customer_name):
+    def _load_invoices_for_customer(self, customer_id):
         """Load and display invoices for this customer."""
         import qtawesome as qta
         from PySide6.QtCore import QSize, Qt
-        from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidgetItem, QPushButton, QWidget
+        from PySide6.QtWidgets import (
+            QHBoxLayout,
+            QLabel,
+            QListWidgetItem,
+            QPushButton,
+            QWidget,
+        )
 
         from sam_invoice.models.crud_invoice import invoice_crud
 
         try:
-            # Search invoices by client name (flexible match)
-            invoices = invoice_crud.get_for_customer(customer_name)
+            # Search invoices by customer ID
+            invoices = invoice_crud.get_for_customer(customer_id)
 
             # Sort by date descending (newest first)
             invoices = sorted(invoices, key=lambda x: x.date if x.date else date.min, reverse=True)
@@ -267,13 +273,13 @@ class CustomerDetailWidget(BaseDetailWidget):
         except Exception as e:
             print(f"Error loading invoices: {e}")
 
-    def _load_last_order_items(self, customer_name):
+    def _load_last_order_items(self, customer_id):
         """Load and display items from the last order."""
         from sam_invoice.models.crud_invoice import invoice_crud
 
         try:
-            # Get all invoices
-            invoices = invoice_crud.get_for_customer(customer_name)
+            # Get all invoices for this customer
+            invoices = invoice_crud.get_for_customer(customer_id)
 
             if not invoices:
                 self._last_order_label.setText("No orders yet")

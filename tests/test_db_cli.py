@@ -16,8 +16,8 @@ def test_db_init_calls_initdb(monkeypatch):
     def fake_init_db():
         called["count"] += 1
 
-    # monkeypatch the init_db function used by the CLI
-    monkeypatch.setattr(cli_module, "init_db", fake_init_db)
+    # monkeypatch the init_db méthode du gestionnaire utilisé par la CLI
+    monkeypatch.setattr(cli_module.db_manager, "init_db", fake_init_db)
 
     result = runner.invoke(cli_module.app, ["db", "init"], catch_exceptions=False)
     assert result.exit_code == 0, result.output

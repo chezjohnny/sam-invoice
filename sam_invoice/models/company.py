@@ -16,7 +16,7 @@ class Company(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)  # Company name
-    address = Column(String)  # Company address
+    address = Column(String, nullable=False)  # Company address
     email = Column(String)  # Contact email
     phone = Column(String)  # Contact phone
     logo = Column(LargeBinary)  # Company logo as binary data

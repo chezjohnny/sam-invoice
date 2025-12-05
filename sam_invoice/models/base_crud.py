@@ -31,7 +31,7 @@ class BaseCRUD[T](ABC):
         Returns:
             List of all entities
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             return session.query(self.model).order_by(self._get_sort_field()).all()
 
     def get_by_id(self, entity_id: int) -> T | None:
@@ -43,12 +43,8 @@ class BaseCRUD[T](ABC):
         Returns:
             The entity if found, None otherwise
         """
-        with database.SessionLocal() as session:
-            if hasattr(self.model, "id"):
-                return session.query(self.model).filter(self.model.id == entity_id).first()
-            elif hasattr(self.model, "reference"):
-                return session.query(self.model).filter(self.model.reference == entity_id).first()
-            return None
+        with database.db_manager.get_session() as session:
+            return session.query(self.model).filter(self.model.id == entity_id).first()
 
     def delete(self, entity_id: int) -> T | None:
         """Delete an entity from the database.
@@ -59,17 +55,10 @@ class BaseCRUD[T](ABC):
         Returns:
             The deleted entity if found, None otherwise
         """
-        with database.SessionLocal() as session:
-            if hasattr(self.model, "id"):
-                entity = session.query(self.model).filter(self.model.id == entity_id).first()
-            elif hasattr(self.model, "reference"):
-                entity = session.query(self.model).filter(self.model.reference == entity_id).first()
-            else:
-                entity = None
-
-            if entity:
-                session.delete(entity)
-                session.commit()
+        with database.db_manager.get_session() as session:
+            entity = session.query(self.model).filter(self.model.id == entity_id).first()
+            session.delete(entity)
+            session.commit()
             return entity
 
     def search(self, query: str, limit: int | None = None) -> list[T]:
@@ -82,7 +71,7 @@ class BaseCRUD[T](ABC):
         Returns:
             List of matching entities
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             q = (query or "").strip()
 
             # If no search query, return all
@@ -95,8 +84,7 @@ class BaseCRUD[T](ABC):
 
             # Add ID filter if search is numeric and model has ID
             try:
-                if hasattr(self.model, "id"):
-                    filters.append(self.model.id == int(q))
+                filters.append(self.model.id == int(q))
             except ValueError:
                 pass
 

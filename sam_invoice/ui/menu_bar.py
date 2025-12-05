@@ -94,8 +94,8 @@ def _new_database(window: QMainWindow) -> None:
             db_path.unlink()
 
         # Create new database
-        database.set_database_path(db_path)
-        database.init_db()
+        database.db_manager.set_database_path(db_path)
+        database.db_manager.init_db()
 
         # Update current database and reload
         window.current_db_path = db_path
@@ -113,7 +113,7 @@ def _open_database(window: QMainWindow) -> None:
     if file_path:
         db_path = Path(file_path)
         if db_path.exists():
-            database.set_database_path(db_path)
+            database.db_manager.set_database_path(db_path)
             window.current_db_path = db_path
             _add_to_recent_files(window, db_path)
             window._update_window_title()
@@ -123,7 +123,7 @@ def _open_database(window: QMainWindow) -> None:
 def _open_recent_database(window: QMainWindow, db_path: Path) -> None:
     """Open a database from recent files list."""
     if db_path.exists():
-        database.set_database_path(db_path)
+        database.db_manager.set_database_path(db_path)
         window.current_db_path = db_path
         _add_to_recent_files(window, db_path)
         window._update_window_title()

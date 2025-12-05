@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from typer.testing import CliRunner
@@ -27,14 +29,10 @@ def test_db_load_fixtures_monkeypatch(monkeypatch):
 
     assert result.exit_code == 0, result.output
     # ensure the final summary mentions the number loaded (strip ANSI color codes)
-    import re
 
-    output_clean = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    assert f"Loaded {len(calls)} customers" in output_clean
+    assert f"Loaded {len(calls)} customers" in result.output
     # check we loaded the expected number from fixtures file
     # by default the CLI uses `fixtures/customers.json` at the project root
-    import json
-    from pathlib import Path
 
     pkg_dir = Path(__file__).resolve().parent.parent
     fixtures_path = pkg_dir / "fixtures" / "customers.json"
@@ -48,14 +46,14 @@ def test_db_load_fixtures_monkeypatch(monkeypatch):
 
 
 def test_db_init_calls_initdb(monkeypatch):
-    """Verify `db init` calls the CLI's imported `init_db` function."""
+    """Verify `db init` calls the DatabaseManager.init_db method via CLI."""
     called = {"count": 0}
 
     def fake_init_db():
         called["count"] += 1
 
-    # monkeypatch the init_db function used by the CLI
-    monkeypatch.setattr(cli_module, "init_db", fake_init_db)
+    # monkeypatch la méthode init_db du gestionnaire utilisé par la CLI
+    monkeypatch.setattr(cli_module.db_manager, "init_db", fake_init_db)
 
     result = runner.invoke(cli_module.app, ["db", "init"], catch_exceptions=False)
     assert result.exit_code == 0, result.output

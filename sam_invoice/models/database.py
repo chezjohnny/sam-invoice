@@ -10,35 +10,53 @@ from sqlalchemy.orm import sessionmaker
 from . import company, customer, invoice, product  # noqa: F401
 from .customer import Base
 
-# Default database path
-DEFAULT_DB_PATH = Path.cwd() / "sam_invoice.db"
-
-# Global engine and session factory
-engine = None
-SessionLocal = None
-
 # Reduce SQLAlchemy logs to WARNING level
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 
-def set_database_path(db_path: Path | str):
-    """Set the database path and reinitialize the engine."""
-    global engine, SessionLocal
+class DatabaseManager:
+    """Manages SQLite database connections and session factory.
 
-    if isinstance(db_path, str):
-        db_path = Path(db_path)
+    Le chemin par défaut est `invoices.db` dans le répertoire courant si aucun
+    chemin n'est fourni au constructeur.
+    """
 
-    database_url = f"sqlite:///{db_path.absolute()}"
-    engine = create_engine(database_url, echo=False)
-    SessionLocal = sessionmaker(bind=engine)
+    def __init__(self, db_path: Path | str | None = None):
+        self.engine = None
+        self.SessionLocal = None
+        if db_path is None:
+            db_path = Path.cwd() / "invoices.db"
+        self.set_database_path(db_path)
+
+    def set_database_path(self, db_path: Path | str) -> None:
+        """Set the database path and reinitialize the engine.
+
+        Args:
+            db_path: Path to the SQLite database file
+        """
+        if isinstance(db_path, str):
+            db_path = Path(db_path)
+
+        database_url = f"sqlite:///{db_path.absolute()}"
+        self.engine = create_engine(database_url, echo=False)
+        self.SessionLocal = sessionmaker(bind=self.engine)
+
+    def init_db(self) -> None:
+        """Initialize the database by creating all tables."""
+        if self.engine is None:
+            # Réinitialise sur le chemin par défaut si jamais non initialisé
+            self.set_database_path(Path.cwd() / "invoices.db")
+        Base.metadata.create_all(bind=self.engine)
+
+    def get_session(self):
+        """Get a new database session."""
+        if self.SessionLocal is None:
+            raise RuntimeError("Database not initialized. Call init_db() first.")
+        return self.SessionLocal()
 
 
-def init_db():
-    """Initialize the database by creating all tables."""
-    if engine is None:
-        set_database_path(DEFAULT_DB_PATH)
-    Base.metadata.create_all(bind=engine)
+# Singleton instance exposée
+db_manager = DatabaseManager()
 
-
-# Initialize with default path on import
-set_database_path(DEFAULT_DB_PATH)
+# NOTE: Les alias historiques `engine` et `SessionLocal` ont été supprimés.
+# Utiliser uniquement l'instance `db_manager`.

@@ -12,7 +12,7 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 from sam_invoice.models.crud_customer import customer_crud
 from sam_invoice.models.crud_invoice import invoice_crud
 from sam_invoice.models.crud_product import product_crud
-from sam_invoice.models.database import init_db, set_database_path
+from sam_invoice.models.database import db_manager
 
 console = Console()
 app = typer.Typer()
@@ -30,8 +30,8 @@ app.add_typer(fixtures_app, name="fixtures")
 def initdb(db_path: Annotated[Path, typer.Option("--db", help="Path to database file")] = None):
     """Initialize the SQLite database."""
     if db_path:
-        set_database_path(db_path)
-    init_db()
+        db_manager.set_database_path(db_path)
+    db_manager.init_db()
     typer.echo("Database initialized.")
 
 
@@ -47,7 +47,7 @@ def load_customers(
     """
     # Set database path if provided
     if db_path:
-        set_database_path(db_path)
+        db_manager.set_database_path(db_path)
 
     # Determine fixtures file path
     if path is None:
@@ -59,7 +59,7 @@ def load_customers(
         raise typer.Exit(code=1)
 
     # Ensure DB exists
-    init_db()
+    db_manager.init_db()
 
     # Load JSON data
     with path.open("r", encoding="utf-8") as fh:
@@ -115,7 +115,7 @@ def load_products(
     """
     # Set database path if provided
     if db_path:
-        set_database_path(db_path)
+        db_manager.set_database_path(db_path)
 
     # Determine fixtures file path
     if path is None:
@@ -127,7 +127,7 @@ def load_products(
         raise typer.Exit(code=1)
 
     # Ensure DB exists
-    init_db()
+    db_manager.init_db()
 
     # Load JSON data
     with path.open("r", encoding="utf-8") as fh:
@@ -153,19 +153,19 @@ def load_products(
             sold = item.get("sold", 0)
 
             try:
-                # Create product (no duplicate check)
+                # Create or update product (handled by CRUD)
                 product = product_crud.create(reference=reference, name=name, price=price, stock=stock, sold=sold)
                 if product:
                     created += 1
                     progress.advance(task)
                     if verbose:
-                        console.print(f"Created product {product.id} - {product.reference}")
+                        console.print(f"Processed product {product.id} - {product.reference}")
                 else:
                     progress.advance(task)
             except Exception as e:
                 errors += 1
                 progress.advance(task)
-                console.print(f"[yellow]Warning: Failed to create product '{reference}': {e}[/yellow]")
+                console.print(f"[yellow]Warning: Failed to process product '{reference}': {e}[/yellow]")
 
     if errors > 0:
         console.print(f"Loaded {created} products from {path} ({errors} errors)", style="yellow")
@@ -181,27 +181,23 @@ def load_invoices(
 ):
     """Load invoices from a JSON fixtures file into the database.
 
-    Default file: `out/factures.json`.
+    Default file: `fixtures/invoices.json` at project root.
     """
     # Set database path if provided
     if db_path:
-        set_database_path(db_path)
+        db_manager.set_database_path(db_path)
 
     # Determine fixtures file path
     if path is None:
-        # Default to out/factures.json relative to CWD or project root
-        path = Path.cwd() / "out" / "factures.json"
-        if not path.exists():
-            # Fallback to project root if running from elsewhere
-            pkg_dir = Path(__file__).resolve().parent.parent
-            path = pkg_dir / "out" / "factures.json"
+        pkg_dir = Path(__file__).resolve().parent.parent
+        path = pkg_dir / "fixtures" / "invoices.json"
 
     if not path.exists():
         typer.echo(f"Fixtures file not found: {path}")
         raise typer.Exit(code=1)
 
     # Ensure DB exists
-    init_db()
+    db_manager.init_db()
 
     # Load JSON data
     with path.open("r", encoding="utf-8") as fh:

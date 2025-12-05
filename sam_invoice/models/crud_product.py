@@ -33,7 +33,7 @@ class ProductCRUD(BaseCRUD[Product]):
         Returns:
             The created product
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             product = Product(reference=reference, name=name, price=price, stock=stock, sold=sold)
             session.add(product)
             session.commit()
@@ -60,7 +60,7 @@ class ProductCRUD(BaseCRUD[Product]):
         Returns:
             The updated product if found, None otherwise
         """
-        with database.SessionLocal() as session:
+        with database.db_manager.get_session() as session:
             product = session.query(Product).filter(Product.reference == product_ref).first()
             if product:
                 if name is not None:
