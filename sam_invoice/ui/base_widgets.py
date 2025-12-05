@@ -95,7 +95,6 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.addLayout(content_layout)
-        main_layout.addStretch()
 
         # Common connections
         self._edit_btn.clicked.connect(lambda: self._enter_edit_mode(True))
@@ -144,9 +143,11 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
         self._right_col.addWidget(label)
         self._right_col.addWidget(edit)
         self._right_col.addWidget(error)
-        # Add small spacing between fields (except for the last one)
-        if not is_primary:
-            self._right_col.addSpacing(4)
+        # Add small spacing between fields
+        if is_primary:
+            self._right_col.addSpacing(8)
+        else:
+            self._right_col.addSpacing(2)
 
         # Connect double-click for editing
         label.double_clicked.connect(lambda: self._enter_edit_mode(True))
@@ -172,8 +173,9 @@ class BaseDetailWidget(QWidget, metaclass=QABCMeta):
 
     def _finalize_layout(self):
         """Finalize layout by adding action buttons."""
+        self._right_col.addSpacing(10)
         self._right_col.addLayout(self._actions_layout)
-        self._right_col.addStretch()  # Push content to top
+        self._right_col.addStretch()
 
     def _enter_edit_mode(self, editing: bool):
         """Toggle between view mode and edit mode."""
@@ -346,13 +348,20 @@ class BaseListView(QWidget, metaclass=QABCMeta):
     def _cleanup_thread(self):
         """Stop and wait for search thread to finish."""
         try:
-            if hasattr(self, "_search_thread") and self._search_thread and self._search_thread.isRunning():
-                # Request thread to quit but don't wait (non-blocking)
-                self._search_thread.quit()
-                # Only wait briefly to avoid hanging on exit
-                if not self._search_thread.wait(100):  # 100ms timeout
-                    # If thread doesn't quit quickly, that's OK - OS will clean it up
-                    pass
+            if hasattr(self, "_search_thread") and self._search_thread:
+                if self._search_thread.isRunning():
+                    # Stop the timer to prevent new searches
+                    if hasattr(self, "_search_timer"):
+                        self._search_timer.stop()
+
+                    # Request thread to quit
+                    self._search_thread.quit()
+
+                    # Wait with a reasonable timeout
+                    if not self._search_thread.wait(500):  # 500ms timeout
+                        # If thread doesn't quit, terminate it forcefully
+                        self._search_thread.terminate()
+                        self._search_thread.wait()
         except RuntimeError:
             # Qt object may already be deleted, that's OK
             pass

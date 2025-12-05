@@ -165,11 +165,10 @@ class MainWindow(QMainWindow):
         # Save window state
         self._save_window_state()
 
-        # Note: We intentionally do NOT stop threads here because:
-        # 1. Qt will handle cleanup automatically during widget destruction
-        # 2. Manually stopping threads during Ctrl+C can cause SIGABRT crashes
-        #    due to Qt's destruction order
-        # 3. The OS will clean up any remaining resources on process exit
+        # Cleanup threads from all views
+        for view in [self._customer_view, self._products_view, self._invoices_view]:
+            if hasattr(view, "cleanup"):
+                view.cleanup()
 
         super().closeEvent(event)
 
@@ -241,10 +240,13 @@ def _setup_signal_handlers(app: QApplication) -> None:
     def handle_signal():
         """Handle the signal notification."""
         # Read the signal byte
-        signal_sock[0].recv(1)
+        try:
+            signal_sock[0].recv(1)
+        except (OSError, BlockingIOError):
+            pass
         print("\nClosing application...")
-        # Force immediate exit to avoid Qt cleanup issues
-        os._exit(0)
+        # Use Qt's quit for clean shutdown
+        app.quit()
 
     notifier.activated.connect(handle_signal)
 

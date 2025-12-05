@@ -3,10 +3,11 @@
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+import qtawesome as qta
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtPdfWidgets import QPdfView
-from PySide6.QtWidgets import QLabel, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QTabWidget, QVBoxLayout, QWidget
 
 from sam_invoice.tools.pdf_generator import InvoicePDFGenerator
 
@@ -38,13 +39,33 @@ class InvoiceDetailWidget(QWidget):
 
         # Tab 1: Details
         details_tab = QWidget()
-        details_layout = QVBoxLayout(details_tab)
+        details_main_layout = QHBoxLayout(details_tab)
+        details_main_layout.setContentsMargins(40, 40, 40, 40)
+        details_main_layout.setSpacing(20)
+
+        # Left side: Invoice icon
+        left_layout = QVBoxLayout()
+        self._icon_label = QLabel()
+        self._icon_label.setFixedSize(96, 96)
+        self._icon_label.setAlignment(Qt.AlignCenter)
+        icon = qta.icon("fa5s.file-invoice-dollar", color="#444444")
+        pix = icon.pixmap(QSize(96, 96))
+        self._icon_label.setPixmap(pix)
+        left_layout.addWidget(self._icon_label, alignment=Qt.AlignHCenter | Qt.AlignTop)
+        left_layout.addStretch()
+
+        # Right side: Details content
+        details_layout = QVBoxLayout()
+        details_layout.setSpacing(0)
 
         self._info_label = QLabel("Select an invoice to view details")
-        self._info_label.setStyleSheet("padding: 20px; font-size: 11pt;")
+        self._info_label.setStyleSheet("font-size: 11pt;")
         self._info_label.setWordWrap(True)
         details_layout.addWidget(self._info_label)
         details_layout.addStretch()
+
+        details_main_layout.addLayout(left_layout, 0)
+        details_main_layout.addLayout(details_layout, 1)
 
         self.tabs.addTab(details_tab, "Details")
 

@@ -10,7 +10,9 @@ from PySide6.QtWidgets import (
     QDialog,
     QDoubleSpinBox,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -34,13 +36,12 @@ class InvoiceEditDialog(QDialog):
         super().__init__(parent)
         self.invoice = invoice
         self.is_new = invoice is None
-        self.pre_selected_customer = customer  # Customer to pre-select
 
         self.setWindowTitle("New Invoice" if self.is_new else f"Edit Invoice {invoice.reference}")
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(800, 600)
+        self.resize(850, 650)
 
         self._init_ui()
-        self._load_customers()
 
         # Pre-select customer if provided
         if customer and self.is_new:
@@ -52,73 +53,163 @@ class InvoiceEditDialog(QDialog):
     def _init_ui(self):
         """Initialize the UI."""
         layout = QVBoxLayout(self)
+        layout.setSpacing(15)
 
-        # Form for invoice header
-        form = QFormLayout()
+        # === Invoice Header Section ===
+        header_group = QGroupBox("Invoice Information")
+        header_group.setStyleSheet("QGroupBox { background-color: white; }")
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(8)
+        header_layout.setContentsMargins(15, 15, 15, 15)
 
-        # Reference (read-only, auto-generated for new)
+        # Reference
+        ref_layout = QHBoxLayout()
+        ref_label = QLabel("Reference:")
+        ref_label.setMinimumWidth(120)
         self.reference_edit = QLineEdit()
         self.reference_edit.setReadOnly(True)
         if self.is_new:
             self.reference_edit.setText(self._generate_next_reference())
-        form.addRow("Reference:", self.reference_edit)
+        ref_layout.addWidget(ref_label)
+        ref_layout.addWidget(self.reference_edit)
+        header_layout.addLayout(ref_layout)
 
-        # Client info (read-only when pre-selected)
+        # Client selector (hidden but functional) - initialize without connecting signal yet
         self.client_combo = QComboBox()
+        self.client_combo.setVisible(False)
+
+        header_group.setLayout(header_layout)
+        layout.addWidget(header_group)
+
+        # === Customer Details Section ===
+        customer_group = QGroupBox("Customer Details")
+        customer_group.setStyleSheet("QGroupBox { background-color: white; }")
+        customer_layout = QVBoxLayout()
+        customer_layout.setSpacing(8)
+        customer_layout.setContentsMargins(15, 15, 15, 15)
+
+        # Customer selector
+        customer_selector_layout = QHBoxLayout()
+        customer_label = QLabel("Customer:")
+        customer_label.setMinimumWidth(120)
+        self.visible_client_combo = QComboBox()
+        customer_selector_layout.addWidget(customer_label)
+        customer_selector_layout.addWidget(self.visible_client_combo)
+        customer_layout.addLayout(customer_selector_layout)
+
+        # Now load customers into both combos
         self._load_customers()
-        self.client_combo.currentIndexChanged.connect(self._on_client_changed)
-        form.addRow("Client:", self.client_combo)
 
-        # Customer name and address as labels (read-only display)
+        # Customer name
+        name_layout = QHBoxLayout()
+        name_label = QLabel("Customer Name:")
+        name_label.setMinimumWidth(120)
         self.customer_name_label = QLabel("")
-        self.customer_name_label.setStyleSheet("padding: 5px; background: #f0f0f0; border-radius: 3px;")
-        form.addRow("Customer Name:", self.customer_name_label)
+        self.customer_name_label.setStyleSheet("padding: 5px; background: #f5f5f5; border-radius: 3px;")
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(self.customer_name_label)
+        customer_layout.addLayout(name_layout)
 
+        # Customer address
+        address_layout = QHBoxLayout()
+        address_label = QLabel("Customer Address:")
+        address_label.setMinimumWidth(120)
+        address_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.customer_address_label = QLabel("")
-        self.customer_address_label.setStyleSheet("padding: 5px; background: #f0f0f0; border-radius: 3px;")
+        self.customer_address_label.setStyleSheet(
+            "padding: 5px; background: #f5f5f5; border-radius: 3px; min-height: 40px;"
+        )
         self.customer_address_label.setWordWrap(True)
-        form.addRow("Customer Address:", self.customer_address_label)
+        address_layout.addWidget(address_label)
+        address_layout.addWidget(self.customer_address_label)
+        customer_layout.addLayout(address_layout)
 
-        # Dates
+        customer_group.setLayout(customer_layout)
+        layout.addWidget(customer_group)
+
+        # Connect signals after all widgets are created
+        self.client_combo.currentIndexChanged.connect(self._on_client_changed)
+        self.visible_client_combo.currentIndexChanged.connect(lambda idx: self.client_combo.setCurrentIndex(idx))
+
+        # === Dates Section ===
+        dates_group = QGroupBox("Dates")
+        dates_group.setStyleSheet("QGroupBox { background-color: white; }")
+        dates_layout = QHBoxLayout()
+        dates_layout.setSpacing(30)
+        dates_layout.setContentsMargins(15, 15, 15, 15)
+
+        # Invoice date
+        invoice_date_layout = QHBoxLayout()
+        invoice_date_label = QLabel("Invoice Date:")
+        invoice_date_label.setMinimumWidth(100)
         self.date_edit = QDateEdit()
         self.date_edit.setDate(date.today())
         self.date_edit.setCalendarPopup(True)
-        form.addRow("Invoice Date:", self.date_edit)
+        self.date_edit.setDisplayFormat("dd.MM.yyyy")
+        invoice_date_layout.addWidget(invoice_date_label)
+        invoice_date_layout.addWidget(self.date_edit)
+        dates_layout.addLayout(invoice_date_layout)
 
+        # Due date
+        due_date_layout = QHBoxLayout()
+        due_date_label = QLabel("Due Date:")
+        due_date_label.setMinimumWidth(100)
         self.due_date_edit = QDateEdit()
         self.due_date_edit.setDate(date.today() + timedelta(days=30))
         self.due_date_edit.setCalendarPopup(True)
-        form.addRow("Due Date:", self.due_date_edit)
+        self.due_date_edit.setDisplayFormat("dd.MM.yyyy")
+        due_date_layout.addWidget(due_date_label)
+        due_date_layout.addWidget(self.due_date_edit)
+        dates_layout.addLayout(due_date_layout)
 
-        layout.addLayout(form)
+        dates_layout.addStretch()
+        dates_group.setLayout(dates_layout)
+        layout.addWidget(dates_group)
 
-        # Items section
+        # === Items Section ===
         items_label = QLabel("<b>Items</b>")
+        items_label.setStyleSheet("font-size: 11pt; padding: 5px 0;")
         layout.addWidget(items_label)
 
         self.items_table = QTableWidget(0, 5)
         self.items_table.setHorizontalHeaderLabels(["Description", "Qty", "Unit Price", "Total", ""])
-        self.items_table.setColumnWidth(0, 250)
+        self.items_table.horizontalHeader().setStretchLastSection(False)
+        self.items_table.verticalHeader().setVisible(False)  # Hide row numbers
+        self.items_table.verticalHeader().setDefaultSectionSize(40)  # Set row height
         self.items_table.setColumnWidth(1, 80)
-        self.items_table.setColumnWidth(2, 100)
-        self.items_table.setColumnWidth(3, 100)
-        self.items_table.setColumnWidth(4, 60)
+        self.items_table.setColumnWidth(2, 120)
+        self.items_table.setColumnWidth(3, 120)
+        self.items_table.setColumnWidth(4, 50)
+        # Description column takes remaining space
+        self.items_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.items_table.setAlternatingRowColors(True)
+        # Add padding to cells
+        self.items_table.setStyleSheet("""
+            QTableWidget::item {
+                padding: 5px;
+            }
+        """)
         layout.addWidget(self.items_table)
 
         # Add item button
         add_item_btn = QPushButton("+ Add Item")
-        add_item_btn.clicked.connect(self._add_item_row)
+        add_item_btn.setMaximumWidth(150)
         layout.addWidget(add_item_btn)
+        add_item_btn.clicked.connect(self._add_item_row)
 
         # Totals area
         totals_layout = QHBoxLayout()
         totals_layout.addStretch()
 
         totals_form = QFormLayout()
-        self.subtotal_label = QLabel("0.00")
-        self.tax_label = QLabel("0.00")
-        self.total_label = QLabel("0.00")
-        self.total_label.setStyleSheet("font-weight: bold; font-size: 12pt;")
+        totals_form.setSpacing(5)
+
+        self.subtotal_label = QLabel("0.00 CHF")
+        self.subtotal_label.setStyleSheet("padding: 3px;")
+        self.tax_label = QLabel("0.00 CHF")
+        self.tax_label.setStyleSheet("padding: 3px;")
+        self.total_label = QLabel("0.00 CHF")
+        self.total_label.setStyleSheet("font-weight: bold; font-size: 12pt; padding: 5px;")
 
         totals_form.addRow("Total HT:", self.subtotal_label)
         totals_form.addRow("TVA (7.7%):", self.tax_label)
@@ -129,15 +220,19 @@ class InvoiceEditDialog(QDialog):
 
         # Dialog buttons
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
         buttons_layout.addStretch()
 
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setMinimumWidth(100)
         cancel_btn.clicked.connect(self.reject)
         buttons_layout.addWidget(cancel_btn)
 
         save_btn = QPushButton("Save")
+        save_btn.setMinimumWidth(100)
         save_btn.clicked.connect(self._save)
         save_btn.setDefault(True)
+        save_btn.setStyleSheet("font-weight: bold;")
         buttons_layout.addWidget(save_btn)
 
         layout.addLayout(buttons_layout)
@@ -150,13 +245,19 @@ class InvoiceEditDialog(QDialog):
         try:
             customers = customer_crud.get_all()
             self.client_combo.addItem("-- Select Client --", None)
+            self.visible_client_combo.addItem("-- Select Client --", None)
             for customer in customers:
                 self.client_combo.addItem(customer.name, customer)
+                self.visible_client_combo.addItem(customer.name, customer)
         except Exception as e:
             print(f"Error loading customers: {e}")
 
     def _on_client_changed(self, index):
         """Auto-fill client info when client is selected."""
+        # Check if widgets are created before using them
+        if not hasattr(self, "customer_name_label") or not hasattr(self, "customer_address_label"):
+            return
+
         customer = self.client_combo.currentData()
         if customer:
             self.customer_name_label.setText(customer.name or "")
@@ -175,7 +276,8 @@ class InvoiceEditDialog(QDialog):
             item = self.client_combo.itemData(i)
             if item and getattr(item, "id", None) == customer_id:
                 self.client_combo.setCurrentIndex(i)
-                self.client_combo.setEnabled(False)  # Lock selection
+                self.visible_client_combo.setCurrentIndex(i)
+                self.visible_client_combo.setEnabled(False)  # Lock selection
                 break
 
     def _generate_next_reference(self):
@@ -442,12 +544,13 @@ class InvoiceEditDialog(QDialog):
                 self.accept()
             else:
                 # Update existing invoice
+                customer = self.client_combo.currentData()
                 invoice = invoice_crud.update(
                     invoice_id=self.invoice.id,
                     reference=self.reference_edit.text(),
                     date=self.date_edit.date().toPython(),
                     due_date=self.due_date_edit.date().toPython(),
-                    customer_name=self.invoice.customer_name,  # Client name doesn't change on edit usually
+                    customer_name=customer.name if customer else self.customer_name_label.text(),
                     customer_address=self.customer_address_label.text(),
                     subtotal=subtotal,
                     tax=tax,

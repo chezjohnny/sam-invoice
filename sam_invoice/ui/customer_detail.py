@@ -45,6 +45,8 @@ class CustomerDetailWidget(BaseDetailWidget):
         # === Last Order Section ===
         last_order_group = QGroupBox("Last Order Items")
         last_order_layout = QVBoxLayout()
+        last_order_layout.setContentsMargins(10, 10, 10, 10)
+        last_order_layout.setSpacing(5)
         self._last_order_label = QLabel("No orders yet")
         self._last_order_label.setStyleSheet("color: #666; font-style: italic; padding: 10px;")
         self._last_order_label.setWordWrap(True)
@@ -54,6 +56,7 @@ class CustomerDetailWidget(BaseDetailWidget):
 
         # === Invoice History Section ===
         history_layout = QVBoxLayout()
+        history_layout.setSpacing(8)
 
         # Header with Create Invoice button
         header_layout = QHBoxLayout()
@@ -92,10 +95,10 @@ class CustomerDetailWidget(BaseDetailWidget):
                 color: black;
             }
         """)
-        history_layout.addWidget(self._invoices_list)  # Add the list widget to the history layout
+        history_layout.addWidget(self._invoices_list, 1)  # Add with stretch factor to expand
 
-        # Add to main layout for full width
-        self.layout().addLayout(history_layout)
+        # Add to main layout for full width with stretch factor
+        self.layout().addLayout(history_layout, 1)
 
         # Connect list signals
         self._invoices_list.itemSelectionChanged.connect(self._on_invoice_selection_changed)
